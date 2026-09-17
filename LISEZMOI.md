@@ -64,6 +64,9 @@ python3 -m http.server 8792                          # puis http://localhost:879
 
 ## Publier
 
+**En ligne** : https://jbal2534.github.io/ma-table/ (dépôt `JBAL2534/ma-table`, Pages sur `main`).
+Chaque push sur `main` met le site à jour en une ou deux minutes.
+
 L'application est un dossier de fichiers statiques : n'importe quel hébergement suffit. Le plus
 simple, déjà utilisé pour ADIA Courses : un dépôt GitHub public avec **Pages** activé sur `main`.
 Sur iPhone, ouvrir l'adresse dans **Safari** (pas dans l'aperçu Google Drive, qui n'exécute pas
