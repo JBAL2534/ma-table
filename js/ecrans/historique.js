@@ -96,7 +96,7 @@
       };
       rendre();
       conteneur.append(zoneRepas);
-      const notes = el('textarea', { value: s.notes || '', placeholder: 'Notes de la semaine : ce qui a marché, ce qu’on change…', 'aria-label': 'Notes', oninput: ev => { s.notes = ev.target.value; clearTimeout(notes._t); notes._t = setTimeout(sauverDoucement, 400); } });
+      const notes = el('textarea', { value: s.notes || '', placeholder: 'Notes de la semaine : ce qui a marché, ce qu’on change…', 'aria-label': 'Notes', oninput: ev => { s.notes = ev.target.value; M.toucherSemaine(s); clearTimeout(notes._t); notes._t = setTimeout(sauverDoucement, 400); } });
       conteneur.append(el('div', 'carte', el('h3', {}, '📝 Notes'), notes));
     } else conteneur.append(el('div', 'carte', el('p', 'sous', 'Pas de menus enregistrés cette semaine-là.')));
     const achats = etat.achats.filter(a => U.lundiDe(a.date) === lundi).sort((a, b) => a.date.localeCompare(b.date));

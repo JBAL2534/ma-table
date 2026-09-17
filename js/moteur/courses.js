@@ -65,6 +65,7 @@
     if (existant) {
       if (article.qte != null && article.qte !== '') existant.qte = (Number(existant.qte) || 0) + Number(article.qte);
       if (article.source && !existant.sources.includes(article.source)) existant.sources.push(article.source);
+      toucher(existant);
       return existant;
     }
     const aff = affecter(nom, ctx);
@@ -82,14 +83,28 @@
       essentiel: !!article.essentiel,
       ajouteLe: new Date().toISOString(),
       ajoutePar: article.par || null,
+      statut: 'actif',
+      modifieLe: new Date().toISOString(),
     };
     liste.push(nouveau);
     return nouveau;
   }
+  // Toute modification d'un article est datée : la fusion entre appareils garde la plus récente.
+  function toucher(objet) { objet.modifieLe = new Date().toISOString(); return objet; }
+  // On ne supprime jamais un article : il passe dans les archives avec son statut.
+  function archiver(etat, article, statut, extra) {
+    etat.liste = etat.liste.filter(x => x.id !== article.id);
+    Object.assign(article, { statut }, extra || {});
+    toucher(article);
+    etat.listeArchivee = etat.listeArchivee || [];
+    etat.listeArchivee.push(article);
+    return article;
+  }
+  function retirer(etat, article) { return archiver(etat, article, 'retire'); }
 
   function estAuGardeManger(nom, gardeManger) {
     const cle = U.racineMot(nom);
-    return (gardeManger || []).some(g => U.racineMot(g.nom) === cle && !g.epuise);
+    return (gardeManger || []).some(g => U.racineMot(g.nom) === cle && !g.epuise && !g.retire);
   }
 
   // Ajoute les ingrédients d'une ou plusieurs recettes, en sautant ce qu'on a déjà à la maison.
@@ -131,12 +146,12 @@
 
   // Changer le magasin d'un article apprend l'habitude pour la prochaine fois.
   function changerMagasin(article, magasin, preferencesMagasin) {
-    article.magasin = magasin;
+    article.magasin = magasin; toucher(article);
     const cle = U.racineMot(article.nom);
     preferencesMagasin[cle] = Object.assign({}, preferencesMagasin[cle] || {}, { magasin, rayon: article.rayon });
   }
   function changerRayon(article, rayon, preferencesMagasin) {
-    article.rayon = rayon;
+    article.rayon = rayon; toucher(article);
     const cle = U.racineMot(article.nom);
     preferencesMagasin[cle] = Object.assign({}, preferencesMagasin[cle] || {}, { magasin: article.magasin, rayon });
   }
@@ -144,7 +159,8 @@
   function cocher(article, coche, par) {
     article.coche = coche;
     article.cochePar = coche ? (par || null) : null;
-    article.cocheLe = coche ? new Date().toISOString() : null;
+    if (coche) article.cocheLe = new Date().toISOString(); else article.decocheLe = new Date().toISOString();
+    toucher(article);
   }
 
   // Termine un passage en magasin : les articles cochés partent dans l'historique d'achats, les autres restent.
@@ -161,13 +177,13 @@
       note: options.note || null,
     };
     etat.achats.push(achat);
-    etat.liste = etat.liste.filter(a => !(a.magasin === magasin && a.coche));
+    for (const a of coches) archiver(etat, a, 'achete', { achatId: achat.id });
     // Ce qu'on vient d'acheter rejoint le garde-manger.
     for (const a of coches) {
       const cle = U.racineMot(a.nom);
       const existant = etat.gardeManger.find(g => U.racineMot(g.nom) === cle);
-      if (existant) { existant.epuise = false; existant.ajouteLe = achat.date; }
-      else etat.gardeManger.push({ id: U.idUnique('gm'), nom: a.nom, qte: a.qte != null ? U.formaterQte(a.qte, a.unite) : null, rayon: a.rayon, peremption: null, ajouteLe: achat.date, epuise: false });
+      if (existant) { existant.epuise = false; existant.retire = false; existant.ajouteLe = achat.date; toucher(existant); }
+      else etat.gardeManger.push({ id: U.idUnique('gm'), nom: a.nom, qte: a.qte != null ? U.formaterQte(a.qte, a.unite) : null, rayon: a.rayon, peremption: null, ajouteLe: achat.date, epuise: false, modifieLe: new Date().toISOString() });
     }
     return achat;
   }
@@ -259,7 +275,7 @@
 
   MaTable.Courses = {
     MAGASINS, RAYONS, affecter, devinerRayon, trouverCatalogue, ajouter, ajouterIngredients, estAuGardeManger, trierRayons, parMagasin, parRayon,
-    changerMagasin, changerRayon, cocher, terminerMagasin, essentiels, basculerEssentiel, suggestions, autocompleter, nomsConnus, texteDrive,
+    changerMagasin, changerRayon, cocher, toucher, archiver, retirer, terminerMagasin, essentiels, basculerEssentiel, suggestions, autocompleter, nomsConnus, texteDrive,
     lienRecherche, nomMagasin, emojiMagasin, analyserSaisie, UNITES,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

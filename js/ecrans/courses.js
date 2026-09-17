@@ -101,11 +101,11 @@
   function menuArticle(a) {
     const etat = E();
     menuActions(a.nom, [
-      { ico: '🔢', libelle: 'Quantité', detail: a.qte != null ? U.formaterQte(a.qte, a.unite) : '', action: async () => { const v = await demander('Quantité pour ' + a.nom, { valeur: a.qte != null ? U.formaterQte(a.qte, a.unite) : '', placeholder: 'Ex. : 500 g, 2, 1 botte', aide: 'Laissez vide pour ne pas préciser.' }); if (v === null) return; const p = C.analyserSaisie(v.trim() ? v + ' x' : ''); a.qte = p.qte; a.unite = p.unite; sauver(); } },
+      { ico: '🔢', libelle: 'Quantité', detail: a.qte != null ? U.formaterQte(a.qte, a.unite) : '', action: async () => { const v = await demander('Quantité pour ' + a.nom, { valeur: a.qte != null ? U.formaterQte(a.qte, a.unite) : '', placeholder: 'Ex. : 500 g, 2, 1 botte', aide: 'Laissez vide pour ne pas préciser.' }); if (v === null) return; const p = C.analyserSaisie(v.trim() ? v + ' x' : ''); a.qte = p.qte; a.unite = p.unite; C.toucher(a); sauver(); } },
       { ico: C.emojiMagasin(a.magasin), libelle: 'Changer de magasin', detail: C.nomMagasin(a.magasin), action: () => feuille({ titre: 'Où acheter ' + a.nom + ' ?', contenu: (corps, fermer) => el('div', 'menu-actions', C.MAGASINS.filter(m => etat.reglages.magasins.includes(m.id) || m.id === a.magasin).map(m => el('button', { onclick: () => { C.changerMagasin(a, m.id, etat.preferencesMagasin); fermer(); sauver(); toast(a.nom + ' ira désormais ' + (m.id === 'marche' ? 'au' : 'chez') + ' ' + m.nom + '.'); } }, el('span', 'ico', m.emoji), el('span', 'pousse', m.nom), m.id === a.magasin ? el('span', 'petit', 'actuel') : null))) }) },
       { ico: '🗂️', libelle: 'Changer de rayon', detail: a.rayon, action: () => feuille({ titre: 'Rayon de ' + a.nom, contenu: (corps, fermer) => el('div', 'menu-actions', C.RAYONS.map(r => el('button', { onclick: () => { C.changerRayon(a, r, etat.preferencesMagasin); fermer(); sauver(); } }, el('span', 'ico', r === a.rayon ? '✓' : '·'), el('span', 'pousse', r)))) }) },
       { ico: '⭐', libelle: C.essentiels(etat).some(n => U.racineMot(n) === U.racineMot(a.nom)) ? 'Retirer des essentiels' : 'Marquer comme essentiel', action: () => { const ajoute = C.basculerEssentiel(etat, a.nom); sauver(); toast(ajoute ? a.nom + ' est un essentiel : réactivable d’un tap.' : 'Retiré des essentiels.'); } },
-      { ico: '🗑️', libelle: 'Retirer de la liste', danger: true, action: () => { etat.liste = etat.liste.filter(x => x.id !== a.id); sauver(); } },
+      { ico: '🗑️', libelle: 'Retirer de la liste', danger: true, action: () => { C.retirer(etat, a); sauver(); } },
     ]);
   }
 
@@ -197,7 +197,7 @@
     const etat = E();
     const auj = U.aujourdhui();
     const voirEpuises = params.epuises === '1';
-    const items = etat.gardeManger.filter(g => voirEpuises || !g.epuise).sort((a, b) => {
+    const items = etat.gardeManger.filter(g => !g.retire && (voirEpuises || !g.epuise)).sort((a, b) => {
       const ja = a.peremption || '9999', jb = b.peremption || '9999';
       return ja.localeCompare(jb) || a.nom.localeCompare(b.nom, 'fr');
     });
@@ -221,7 +221,7 @@
       contenu: el('div', {}, el('label', 'champ', el('span', {}, 'Produit'), nom), el('label', 'champ', el('span', {}, 'Quantité (facultatif)'), qte), el('label', 'champ', el('span', {}, 'À consommer avant (facultatif)'), per)),
       actions: [{ libelle: 'Annuler' }, { libelle: 'Enregistrer', classe: 'principal', action: () => {
         if (!nom.value.trim()) { toast('Indiquez le produit.'); return false; }
-        if (g) { g.nom = U.majuscule(nom.value.trim()); g.qte = qte.value.trim() || null; g.peremption = per.value || null; g.epuise = false; }
+        if (g) { g.nom = U.majuscule(nom.value.trim()); g.qte = qte.value.trim() || null; g.peremption = per.value || null; g.epuise = false; C.toucher(g); }
         else S.ajouterGardeManger(etat, { nom: nom.value, qte: qte.value.trim(), peremption: per.value });
         sauver();
       } }] });
@@ -233,7 +233,7 @@
       !g.epuise && { ico: '🫙', libelle: 'C’est fini (épuisé)', action: () => { g.epuise = true; sauver(); } },
       g.epuise && { ico: '🥫', libelle: 'J’en ai de nouveau', action: () => { g.epuise = false; sauver(); } },
       { ico: '🧺', libelle: 'Remettre sur la liste de courses', action: () => ajouterArticle(g.nom) },
-      { ico: '🗑️', libelle: 'Retirer du garde-manger', danger: true, action: () => { etat.gardeManger = etat.gardeManger.filter(x => x.id !== g.id); sauver(); } },
+      { ico: '🗑️', libelle: 'Retirer du garde-manger', danger: true, action: () => { g.retire = true; C.toucher(g); sauver(); } },
     ]);
   }
   function idees() {

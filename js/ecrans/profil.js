@@ -14,19 +14,21 @@
     conteneur.append(carteOrganisation(etat));
     conteneur.append(carteMagasins(etat));
     conteneur.append(carteDrive(etat));
+    conteneur.append(carteSynchro(etat));
     conteneur.append(carteIA(etat));
     conteneur.append(cartePoids(etat));
     conteneur.append(carteDonnees(etat));
     conteneur.append(carteAide());
   }
 
+  const toucherReglages = () => { E().reglages.modifieLe = new Date().toISOString(); };
   const champTexte = (libelle, valeur, auChangement, attrs) => el('label', 'champ', el('span', {}, libelle), el('input', Object.assign({ type: 'text', value: valeur == null ? '' : valeur, onchange: ev => auChangement(ev.target.value) }, attrs || {})));
   const champSelect = (libelle, options, valeur, auChangement) => el('label', 'champ', el('span', {}, libelle), el('select', { onchange: ev => auChangement(ev.target.value) }, options.map(([v, l]) => el('option', { value: v, selected: String(v) === String(valeur) }, l))));
 
   function carteFamille(etat) {
     const utilisateur = etat.utilisateur;
     return el('div', 'carte', el('h2', {}, '👪 ' + etat.famille.nom),
-      champTexte('Nom de la famille', etat.famille.nom, v => { etat.famille.nom = v.trim() || 'Ma famille'; sauver(); }),
+      champTexte('Nom de la famille', etat.famille.nom, v => { etat.famille.nom = v.trim() || 'Ma famille'; etat.famille.modifieLe = new Date().toISOString(); sauver(); }),
       el('ul', 'liste', etat.famille.membres.map(m => el('li', {}, el('span', 'ico', m.role === 'enfant' ? '🧒' : '🧑'), el('button', { class: 'pousse', style: 'text-align:left;background:none;border:0;padding:0;min-height:44px', onclick: () => formulaireMembre(m) }, el('div', 'gras', m.nom + (m.id === utilisateur ? ' · ce téléphone' : '')), el('div', 'petit', [m.role === 'enfant' ? 'enfant' : 'adulte', m.age ? m.age + ' ans' : null, m.aimePeu.length ? 'aime peu : ' + m.aimePeu.slice(0, 3).join(', ') : null].filter(Boolean).join(' · '))), el('span', 'petit', '›')))),
       el('div', 'boutons', el('button', { class: 'btn', onclick: () => formulaireMembre(null) }, '＋ Ajouter un membre')),
       champSelect('Qui utilise ce téléphone ?', etat.famille.membres.map(m => [m.id, m.nom]), utilisateur, v => { etat.utilisateur = v; sauver(); }));
@@ -50,6 +52,7 @@
       actions: [{ libelle: 'Annuler' }, { libelle: 'Enregistrer', classe: 'principal', action: () => {
         if (!nom.value.trim()) { toast('Indiquez un prénom.'); return false; }
         Object.assign(membre, { nom: nom.value.trim(), role: role.value, age: age.value ? Number(age.value) : null, aime: liste(aime.value), aimePeu: liste(aimePeu.value), objectifs: cases.filter(c => c.firstChild.checked).map(c => c.firstChild.value) });
+        membre.modifieLe = new Date().toISOString();
         if (!membre.id) { membre.id = U.idUnique('m'); etat.famille.membres.push(membre); }
         sauver();
       } }] });
@@ -60,31 +63,58 @@
     const adultes = etat.famille.membres.filter(m => m.role === 'adulte');
     return el('div', 'carte', el('h2', {}, '🗓️ Organisation'),
       el('div', 'grille-2',
-        champTexte('Retour à la maison le soir', r.heureRetour, v => { r.heureRetour = v; sauverDoucement(); }, { type: 'time' }),
-        champTexte('Temps max en semaine (min)', r.tempsMaxSemaine, v => { r.tempsMaxSemaine = Math.max(10, Number(v) || 25); sauver(); }, { type: 'number', inputmode: 'numeric', min: '10' })),
-      champSelect('Jour du batch cooking', U.JOURS.slice(1).concat([U.JOURS[0]]).map((j, i) => [i + 1, U.majuscule(j)]), r.jourBatch, v => { r.jourBatch = Number(v); sauver(); }),
+        champTexte('Retour à la maison le soir', r.heureRetour, v => { r.heureRetour = v; toucherReglages(); sauverDoucement(); }, { type: 'time' }),
+        champTexte('Temps max en semaine (min)', r.tempsMaxSemaine, v => { r.tempsMaxSemaine = Math.max(10, Number(v) || 25); toucherReglages(); sauver(); }, { type: 'number', inputmode: 'numeric', min: '10' })),
+      champSelect('Jour du batch cooking', U.JOURS.slice(1).concat([U.JOURS[0]]).map((j, i) => [i + 1, U.majuscule(j)]), r.jourBatch, v => { r.jourBatch = Number(v); toucherReglages(); sauver(); }),
       el('div', 'grille-2',
-        champSelect('Qui cuisine le soir en semaine ?', adultes.map(m => [m.id, m.nom]), r.cuisinierSoir, v => { r.cuisinierSoir = v; sauverDoucement(); }),
-        champSelect('Qui cuisine le week-end ?', adultes.map(m => [m.id, m.nom]), r.cuisinierWeekend, v => { r.cuisinierWeekend = v; sauverDoucement(); })),
+        champSelect('Qui cuisine le soir en semaine ?', adultes.map(m => [m.id, m.nom]), r.cuisinierSoir, v => { r.cuisinierSoir = v; toucherReglages(); sauverDoucement(); }),
+        champSelect('Qui cuisine le week-end ?', adultes.map(m => [m.id, m.nom]), r.cuisinierWeekend, v => { r.cuisinierWeekend = v; toucherReglages(); sauverDoucement(); })),
       el('div', 'grille-2',
-        champSelect('Repas plaisir par week-end', [[0, 'Aucun'], [1, 'Un'], [2, 'Deux']], r.tolerancePlaisir, v => { r.tolerancePlaisir = Number(v); sauver(); }),
-        champTexte('Budget courses indicatif (€/semaine)', r.budget, v => { r.budget = v ? Number(String(v).replace(',', '.')) : null; sauverDoucement(); }, { inputmode: 'decimal', placeholder: 'facultatif' })),
+        champSelect('Repas plaisir par week-end', [[0, 'Aucun'], [1, 'Un'], [2, 'Deux']], r.tolerancePlaisir, v => { r.tolerancePlaisir = Number(v); toucherReglages(); sauver(); }),
+        champTexte('Budget courses indicatif (€/semaine)', r.budget, v => { r.budget = v ? Number(String(v).replace(',', '.')) : null; toucherReglages(); sauverDoucement(); }, { inputmode: 'decimal', placeholder: 'facultatif' })),
       el('label', 'interrupteur', el('span', {}, el('div', 'gras', 'Dictée vocale dans la liste'), el('div', 'petit', 'Le micro apparaît si l’appareil le permet.')), el('input', { type: 'checkbox', checked: r.voixActive !== false, onchange: ev => { r.voixActive = ev.target.checked; sauver(); } })));
   }
 
   function carteMagasins(etat) {
     const r = etat.reglages;
     return el('div', 'carte', el('h2', {}, '🛒 Magasins fréquentés'), el('p', 'petit', 'Les articles sont répartis entre ces magasins. Changer le magasin d’un article dans la liste apprend votre habitude.'),
-      C.MAGASINS.map(m => el('label', 'case', el('input', { type: 'checkbox', checked: r.magasins.includes(m.id), onchange: ev => { if (ev.target.checked) { if (!r.magasins.includes(m.id)) r.magasins.push(m.id); } else if (r.magasins.length > 1) r.magasins = r.magasins.filter(x => x !== m.id); else { ev.target.checked = true; toast('Gardez au moins un magasin.'); return; } sauver(); } }), m.emoji + ' ' + m.nom)),
+      C.MAGASINS.map(m => el('label', 'case', el('input', { type: 'checkbox', checked: r.magasins.includes(m.id), onchange: ev => { if (ev.target.checked) { if (!r.magasins.includes(m.id)) r.magasins.push(m.id); } else if (r.magasins.length > 1) r.magasins = r.magasins.filter(x => x !== m.id); else { ev.target.checked = true; toast('Gardez au moins un magasin.'); return; } toucherReglages(); sauver(); } }), m.emoji + ' ' + m.nom)),
       Object.keys(etat.preferencesMagasin).length ? el('p', 'minuscule', U.pluriel(Object.keys(etat.preferencesMagasin).length, 'habitude apprise', 'habitudes apprises') + '.') : null);
   }
 
   function carteDrive(etat) {
     const d = etat.reglages.drive;
     return el('div', 'carte', el('h2', {}, '🚗 Option Drive'),
-      el('label', 'interrupteur', el('span', {}, el('div', 'gras', 'Préparer la liste du supermarché pour un drive'), el('div', 'petit', 'Texte prêt à coller, et liens de recherche par article.')), el('input', { type: 'checkbox', checked: d.actif, onchange: ev => { d.actif = ev.target.checked; sauver(); } })),
-      d.actif ? champTexte('Adresse de recherche du drive (facultatif)', d.modeleUrl, v => { d.modeleUrl = v.trim(); sauver(); }, { type: 'url', placeholder: 'https://…/recherche?q=%s' }) : null,
+      el('label', 'interrupteur', el('span', {}, el('div', 'gras', 'Préparer la liste du supermarché pour un drive'), el('div', 'petit', 'Texte prêt à coller, et liens de recherche par article.')), el('input', { type: 'checkbox', checked: d.actif, onchange: ev => { d.actif = ev.target.checked; toucherReglages(); sauver(); } })),
+      d.actif ? champTexte('Adresse de recherche du drive (facultatif)', d.modeleUrl, v => { d.modeleUrl = v.trim(); toucherReglages(); sauver(); }, { type: 'url', placeholder: 'https://…/recherche?q=%s' }) : null,
       d.actif ? el('p', 'aide petit', 'Sur le site de votre drive, cherchez un mot, copiez l’adresse de la page et remplacez le mot par %s. Ma Table pourra alors ouvrir la recherche de chaque article.') : null);
+  }
+
+  function carteSynchro(etat) {
+    const Sy = MaTable.Synchro;
+    const actif = Sy.actif(etat);
+    const st = Sy.statut(etat);
+    const champ = el('input', { type: 'password', placeholder: 'ghp_…', autocomplete: 'off', 'aria-label': 'Jeton GitHub' });
+    return el('div', 'carte', el('h2', {}, '☁️ Synchronisation entre appareils'),
+      actif
+        ? el('div', {},
+          el('p', { class: st.erreur ? 'erreur' : 'sous' }, (st.erreur ? '⚠️ ' : '✓ ') + st.texte),
+          el('p', 'petit', 'Mac, iPhones : ce que l\u2019un change, les autres le voient en moins d\u2019une minute quand l\u2019application est ouverte. Les données transitent par un fichier privé sur votre compte GitHub.'),
+          el('div', 'boutons',
+            el('button', { class: 'btn principal', onclick: async () => { toast('Synchronisation…', 1200); const r = await Sy.cycle(etat, { force: true }); if (r && r.erreur) toast(r.erreur, 4000); else { toast(r && r.recu ? r.recu + ' changements reçus.' : 'Tout est à jour.'); } app().rafraichir(); } }, '🔄 Synchroniser maintenant'),
+            el('button', { class: 'btn danger', onclick: async () => { if (await confirmer('La synchronisation s\u2019arrête sur cet appareil. Vos données restent, le fichier partagé aussi.', { ok: 'Désactiver', danger: true })) { Sy.desactiver(etat); app().rafraichir(); } } }, 'Désactiver')))
+        : el('div', {},
+          el('p', 'petit', 'Pour retrouver la même liste et les mêmes menus sur le Mac et les deux iPhones. Il faut un « jeton » GitHub, à créer une fois et à coller sur chaque appareil.'),
+          el('details', {}, el('summary', 'gras', 'Comment créer le jeton (2 minutes)'),
+            el('ol', { class: 'petit', style: 'padding-left:18px' },
+              el('li', {}, 'Sur github.com, connecté à votre compte : photo de profil → Settings → tout en bas, Developer settings.'),
+              el('li', {}, 'Personal access tokens → Tokens (classic) → Generate new token (classic).'),
+              el('li', {}, 'Note : « Ma Table ». Expiration : No expiration. Cochez uniquement la case « gist ».'),
+              el('li', {}, 'Generate token, puis copiez la suite de caractères qui commence par ghp_ : elle ne sera plus affichée.'),
+              el('li', {}, 'Collez-la ci-dessous, sur chaque appareil. En cas de perte d\u2019un téléphone, supprimez le jeton sur GitHub.'))),
+          el('div', 'espace'),
+          el('label', 'champ', el('span', {}, 'Jeton GitHub'), champ),
+          el('div', 'boutons', el('button', { class: 'btn principal', onclick: async () => { const v = champ.value.trim(); if (!v) { toast('Collez d\u2019abord le jeton.'); return; } toast('Connexion à GitHub…', 1500); try { const r = await Sy.configurer(etat, v); if (r && r.erreur) throw new Error(r.erreur); toast('✓ Synchronisation activée.' + (r && r.recu ? ' ' + r.recu + ' changements reçus.' : '')); app().rafraichir(); } catch (e) { toast(e.message, 4500); Sy.desactiver(etat); } } }, 'Activer la synchronisation'))));
   }
 
   function carteIA(etat) {

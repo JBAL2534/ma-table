@@ -1,7 +1,7 @@
 // Tests du moteur de « Ma Table », sans interface : node test/run-tests.js
 const assert = require('assert');
 const path = require('path');
-for (const f of ['js/util.js', 'js/donnees/recettes.js', 'js/donnees/articles.js', 'js/moteur/stockage.js', 'js/moteur/courses.js', 'js/moteur/menus.js', 'js/moteur/historique.js', 'js/moteur/scan.js', 'js/moteur/ia.js']) {
+for (const f of ['js/util.js', 'js/donnees/recettes.js', 'js/donnees/articles.js', 'js/moteur/stockage.js', 'js/moteur/courses.js', 'js/moteur/menus.js', 'js/moteur/historique.js', 'js/moteur/scan.js', 'js/moteur/ia.js', 'js/moteur/synchro.js']) {
   require(path.join(__dirname, '..', f));
 }
 const T = globalThis.MaTable;
@@ -413,14 +413,14 @@ test('fusionner deux téléphones ne perd rien de part et d\u2019autre', () => {
   const etat = etatNeuf(); const C = T.Courses;
   C.ajouter(etat.liste, { nom: 'Lait', qte: 1, unite: 'l' }); C.ajouter(etat.liste, { nom: 'Pommes' });
   etat.achats.push({ id: 'a1', date: '2026-09-14', magasin: 'biocoop', articles: [{ nom: 'Quinoa' }], montant: 10 });
-  etat.semaines['2026-09-14'] = T.Menus.genererSemaine(etat, '2026-09-14', 1); etat.semaines['2026-09-14'].generee = '2026-09-10T10:00:00Z';
+  etat.semaines['2026-09-14'] = T.Menus.genererSemaine(etat, '2026-09-14', 1); etat.semaines['2026-09-14'].generee = '2026-09-10T10:00:00Z'; etat.semaines['2026-09-14'].modifieLe = '2026-09-10T10:00:00Z';
   etat.poids['m1'] = { code: '1111', actif: true, mesures: [{ date: '2026-09-01', kg: 80 }] };
   // L'autre téléphone : mêmes articles dont un coché, un article de plus, un achat de plus, une semaine plus récente, un avis.
   const autre = T.Stockage.etatDefaut();
   C.ajouter(autre.liste, { nom: 'lait', qte: 1, unite: 'l' }); C.cocher(autre.liste[0], true, 'm2'); C.ajouter(autre.liste, { nom: 'Beurre' });
   autre.achats.push({ id: 'a1', date: '2026-09-14', magasin: 'biocoop', articles: [{ nom: 'Quinoa' }], montant: 10 });
   autre.achats.push({ id: 'a2', date: '2026-09-15', magasin: 'marche', articles: [{ nom: 'Poires' }], montant: null });
-  autre.semaines['2026-09-14'] = T.Menus.genererSemaine(autre, '2026-09-14', 2); autre.semaines['2026-09-14'].generee = '2026-09-12T10:00:00Z';
+  autre.semaines['2026-09-14'] = T.Menus.genererSemaine(autre, '2026-09-14', 2); autre.semaines['2026-09-14'].generee = '2026-09-12T10:00:00Z'; autre.semaines['2026-09-14'].modifieLe = '2026-09-12T10:00:00Z';
   autre.semaines['2026-09-21'] = T.Menus.genererSemaine(autre, '2026-09-21', 3);
   autre.avis.push({ id: 'v1', date: '2026-09-15', creneau: 'soir', recetteId: 'r8', titre: 'x', note: 'refait', quand: '2026-09-15T20:00:00Z' });
   autre.gardeManger.push({ id: 'g9', nom: 'Riz complet', epuise: false });
@@ -465,6 +465,77 @@ test('IA : inactive sans clé, appel structuré avec clé, erreurs traduites', a
   await assert.rejects(() => T.IA.analyserPhoto(etat, 'x', 'produit', async () => ({ ok: false, status: 429 })), /réessayez/i);
   await assert.rejects(() => T.IA.analyserPhoto(etat, 'x', 'produit', async () => { throw new Error('réseau'); }), /Pas de connexion/);
   await assert.rejects(() => T.IA.analyserPhoto(etat, 'x', 'produit', async () => ({ ok: true, status: 200, json: async () => ({ stop_reason: 'refusal', content: [] }) })), /refusée/);
+});
+
+// --- Archives et synchronisation --------------------------------------------------
+test('rien n\u2019est supprimé de la liste : retirer et acheter archivent', () => {
+  const etat = etatNeuf(); const C = T.Courses;
+  const a = C.ajouter(etat.liste, { nom: 'Lait' }); const b = C.ajouter(etat.liste, { nom: 'Beurre' });
+  assert.strictEqual(a.statut, 'actif'); assert.ok(a.modifieLe);
+  C.retirer(etat, a);
+  assert.strictEqual(etat.liste.length, 1); assert.strictEqual(etat.listeArchivee[0].statut, 'retire');
+  C.cocher(b, true, 'm1'); C.terminerMagasin(etat, 'supermarche', {});
+  assert.strictEqual(etat.liste.length, 0); assert.strictEqual(etat.listeArchivee.find(x => x.id === b.id).statut, 'achete');
+  // Un article retiré ici ne revient pas depuis l'autre appareil, qui l'a encore actif.
+  const autre = T.Stockage.etatDefaut(); autre.liste.push(Object.assign({}, a, { statut: 'actif', modifieLe: '2020-01-01T00:00:00Z' }));
+  T.Stockage.fusionnerEtat(etat, autre);
+  assert.strictEqual(etat.liste.length, 0, 'le retrait, plus récent, gagne');
+  // À l'inverse, un article coché plus récemment ailleurs reste coché ici.
+  const c = C.ajouter(etat.liste, { nom: 'Œufs' }); c.modifieLe = '2020-01-01T00:00:00Z';
+  const autre2 = T.Stockage.etatDefaut(); autre2.liste.push(Object.assign({}, c, { coche: true, cochePar: 'm2', cocheLe: '2026-01-01T00:00:00Z', modifieLe: '2026-01-01T00:00:00Z' }));
+  T.Stockage.fusionnerEtat(etat, autre2);
+  assert.strictEqual(etat.liste.find(x => x.id === c.id).coche, true); assert.strictEqual(etat.liste.find(x => x.id === c.id).cochePar, 'm2');
+});
+test('synchronisation par gist : deux appareils convergent', async () => {
+  // Un faux GitHub en mémoire.
+  const gists = {}; let compteur = 0; const journal = [];
+  const fauxFetch = async (url, options) => {
+    options = options || {}; journal.push(options.method + ' ' + url.replace('https://api.github.com', ''));
+    const entetes = { get: (k) => k === 'ETag' ? '"' + (gists.v || 0) + '"' : null };
+    if (!options.headers || options.headers.Authorization !== 'Bearer ghp_test') return { ok: false, status: 401, json: async () => ({}) };
+    if (url.endsWith('/gists?per_page=100')) return { ok: true, status: 200, headers: entetes, json: async () => Object.values(gists).filter(g => g && g.id) };
+    if (url.endsWith('/gists') && options.method === 'POST') { const b = JSON.parse(options.body); const id = 'g' + (++compteur); gists[id] = { id, description: b.description, files: { 'ma-table.json': { content: b.files['ma-table.json'].content } } }; gists.v = (gists.v || 0) + 1; return { ok: true, status: 201, headers: entetes, json: async () => gists[id] }; }
+    const m = url.match(/\/gists\/(g\d+)$/);
+    if (m && options.method === 'GET') { if (!gists[m[1]]) return { ok: false, status: 404, json: async () => ({}) }; if (options.headers['If-None-Match'] === '"' + gists.v + '"') return { ok: true, status: 304, headers: entetes, json: async () => ({}) }; return { ok: true, status: 200, headers: entetes, json: async () => gists[m[1]] }; }
+    if (m && options.method === 'PATCH') { const b = JSON.parse(options.body); gists[m[1]].files['ma-table.json'].content = b.files['ma-table.json'].content; gists.v++; return { ok: true, status: 200, headers: entetes, json: async () => gists[m[1]] }; }
+    return { ok: false, status: 500, json: async () => ({}) };
+  };
+  const Sy = T.Synchro; Sy.fetchImpl = fauxFetch; Sy.document = null;
+  // Appareil A
+  const A = etatNeuf(); T.Stockage.etat = A; A.utilisateur = 'm1'; A.reglages.ia.cle = 'sk-ant-secret';
+  T.Courses.ajouter(A.liste, { nom: 'Lait', qte: 1, unite: 'l' }); T.Stockage.sauver();
+  const r1 = await Sy.configurer(A, 'ghp_test');
+  assert.ok(Sy.actif(A) && A.synchro.gistId === 'g1', 'gist créé');
+  assert.ok(!gists.g1.files['ma-table.json'].content.includes('sk-ant-secret'), 'la clé API ne part pas dans le gist');
+  assert.ok(!gists.g1.files['ma-table.json'].content.includes('ghp_test'), 'le jeton ne part pas dans le gist');
+  assert.ok(!JSON.parse(gists.g1.files['ma-table.json'].content).donnees.utilisateur, 'qui utilise le téléphone reste local');
+  // Appareil B : même jeton, il retrouve le gist existant sans en créer un autre.
+  const B = T.Stockage.etatDefaut(); T.Stockage.etat = B; B.utilisateur = 'm2';
+  const r2 = await Sy.configurer(B, 'ghp_test');
+  assert.strictEqual(B.synchro.gistId, 'g1', 'B retrouve le fichier de A');
+  assert.ok(B.liste.some(a => a.nom === 'Lait'), 'B reçoit le lait de A');
+  // B coche le lait (un instant plus tard), A le voit.
+  await new Promise(r => setTimeout(r, 5));
+  T.Courses.cocher(B.liste[0], true, 'm2'); T.Stockage.sauver();
+  await Sy.cycle(B);
+  T.Stockage.etat = A; const rA = await Sy.cycle(A);
+  assert.ok(rA.recu >= 1, 'A a reçu un changement');
+  assert.strictEqual(A.liste[0].coche, true); assert.strictEqual(A.liste[0].cochePar, 'm2');
+  // Sans changement, un cycle ne renvoie rien (304) et n'écrit rien.
+  const avant = journal.length; const rA2 = await Sy.cycle(A);
+  assert.strictEqual(rA2.recu, 0); assert.strictEqual(rA2.envoye, false);
+  assert.ok(journal.slice(avant).every(l => l.startsWith('GET')), 'lecture seule quand rien ne change');
+  // A retire le lait ; B ne le voit plus revenir.
+  await new Promise(r => setTimeout(r, 5));
+  T.Courses.retirer(A, A.liste[0]); T.Stockage.sauver(); await Sy.cycle(A);
+  T.Stockage.etat = B; await Sy.cycle(B);
+  assert.strictEqual(B.liste.filter(a => a.statut === 'actif').length, 0, 'le retrait se propage');
+  // Mauvais jeton : erreur en français, l'état reste intact.
+  const Cc = T.Stockage.etatDefaut(); T.Stockage.etat = Cc;
+  await assert.rejects(() => Sy.configurer(Cc, 'ghp_faux'), /refuse le jeton/);
+  assert.ok(Sy.statut(A).ok, 'A reste synchronisé');
+  Sy.desactiver(A); assert.strictEqual(Sy.actif(A), false); assert.strictEqual(A.synchro.jeton, '');
+  Sy.fetchImpl = null;
 });
 
 (async () => {

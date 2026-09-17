@@ -33,6 +33,7 @@
     if (recette.badges.includes('cookeo') === false && recette.cuisson === 'cookeo') recette.badges.push('cookeo');
     if (recette.badges.includes('airfryer') === false && recette.cuisson === 'airfryer') recette.badges.push('airfryer');
     const i = etat.recettes.findIndex(r => r.id === recette.id);
+    recette.modifieLe = new Date().toISOString();
     if (i === -1) etat.recettes.push(recette); else etat.recettes[i] = recette;
     return recette;
   }
@@ -42,6 +43,7 @@
     for (const j of U.joursSemaine(lundi)) repas[j] = { matin: null, midi: null, soir: null };
     return { lundi, repas, batch: null, generee: null, notes: '' };
   }
+  function toucherSemaine(s) { if (s) s.modifieLe = new Date().toISOString(); return s; }
   function semaine(etat, lundi, creer) {
     if (!etat.semaines[lundi] && creer) etat.semaines[lundi] = semaineVide(lundi);
     return etat.semaines[lundi] || null;
@@ -239,6 +241,7 @@
     // 6. La session de batch cooking.
     s.batch = { date: jourBatch, preparations, soirsRechauffes };
     planBatch(s);
+    s.modifieLe = s.generee;
     return s;
   }
 
@@ -327,6 +330,7 @@
       }
       s.repas[date][creneau] = repasDepuis(r, 'recette', r.badges.includes('plaisir') ? { sousTitre: 'Repas plaisir' } : {});
     }
+    toucherSemaine(s);
     return s.repas[date][creneau];
   }
 
@@ -334,6 +338,7 @@
     const r = recetteParId(etat, recetteId);
     if (!r) return null;
     s.repas[date][creneau] = repasDepuis(r);
+    toucherSemaine(s);
     return s.repas[date][creneau];
   }
 
@@ -346,6 +351,7 @@
       for (const p of s.batch.preparations) p.jours = p.jours.map(j => j === dateA ? '__' : j === dateB ? dateA : j).map(j => j === '__' ? dateB : j).sort();
       planBatch(s);
     }
+    toucherSemaine(s);
   }
 
   function ingredientsRecette(recette, portions) {
@@ -391,6 +397,6 @@
 
   MaTable.Menus = {
     CRENEAUX, NOMS_CRENEAU, CUISSONS, BADGES, toutesRecettes, recetteParId, enregistrerRecette, semaineVide, semaine, poids, avisPour,
-    genererSemaine, planBatch, autreIdee, placerRecette, deplacerRepas, ingredientsRecette, ingredientsSemaine, cumuler, arrondir, repartirLunchBoxes, nomEnfant,
+    genererSemaine, planBatch, autreIdee, toucherSemaine, placerRecette, deplacerRepas, ingredientsRecette, ingredientsSemaine, cumuler, arrondir, repartirLunchBoxes, nomEnfant,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

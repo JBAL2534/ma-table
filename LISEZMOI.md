@@ -30,9 +30,14 @@ iPhone (PWA installable, fonctionne hors ligne), 100 % en français, sans compte
 
 ## Ce qu'elle ne fait pas (et pourquoi)
 
-- Pas de synchronisation instantanée entre deux téléphones : il n'y a pas de serveur. On partage
-  par le fichier d'export (AirDrop, Messages) puis **Fusionner** à l'import : les deux listes se
-  combinent sans doublon, avec le nom de qui a coché quoi.
+- Pas de serveur à nous. La **synchronisation entre appareils** (Profil → ☁️) passe par un
+  fichier privé sur le compte GitHub de la famille (un « gist ») : chaque appareil le relit toutes
+  les trente secondes quand l'application est ouverte, fusionne, puis réécrit. Il faut un jeton
+  GitHub limité au droit « gist », collé une fois sur chaque appareil ; le mode d'emploi est dans
+  l'application. Sans jeton, le partage passe par le fichier d'export puis **Fusionner** à l'import.
+- Rien n'est jamais supprimé : un article retiré ou acheté est archivé avec sa date. C'est ce qui
+  permet à la fusion de ne rien faire revenir et de ne rien perdre (la version la plus récente gagne,
+  un coché récent l'emporte sur un décoché ancien).
 - Pas d'intelligence artificielle imposée : la proposition de semaine repose sur des règles
   claires et vos avis. La photo n'apparaît qu'avec une clé saisie dans Profil.
 - Pas de calories, nulle part.
@@ -43,7 +48,7 @@ iPhone (PWA installable, fonctionne hors ligne), 100 % en français, sans compte
 | --- | --- |
 | `index.html`, `css/style.css` | La page et la feuille de style (mobile d'abord, mode sombre) |
 | `js/donnees/` | Recettes et articles de départ |
-| `js/moteur/` | Toute la logique, sans interface : `stockage`, `courses`, `menus`, `historique`, `scan`, `ia` |
+| `js/moteur/` | Toute la logique, sans interface : `stockage` (dont la fusion), `courses`, `menus`, `historique`, `scan`, `ia`, `synchro` |
 | `js/ecrans/` | Un fichier par onglet |
 | `js/ui.js`, `js/app.js` | Aides d'affichage, navigation |
 | `sw.js`, `manifest.webmanifest`, `icones/` | Installation et hors-ligne |

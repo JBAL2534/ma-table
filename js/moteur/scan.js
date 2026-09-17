@@ -85,8 +85,8 @@
     if (!nom) return null;
     const cle = U.racineMot(nom);
     let g = etat.gardeManger.find(x => U.racineMot(x.nom) === cle);
-    if (g) { g.epuise = false; if (qte) g.qte = qte; if (peremption) g.peremption = peremption; g.ajouteLe = U.aujourdhui(); return g; }
-    g = { id: U.idUnique('gm'), nom: U.majuscule(nom), qte: qte || null, rayon: rayon || MaTable.Courses.devinerRayon(nom), peremption: peremption || null, ajouteLe: U.aujourdhui(), epuise: false };
+    if (g) { g.epuise = false; g.retire = false; if (qte) g.qte = qte; if (peremption) g.peremption = peremption; g.ajouteLe = U.aujourdhui(); g.modifieLe = new Date().toISOString(); return g; }
+    g = { id: U.idUnique('gm'), nom: U.majuscule(nom), qte: qte || null, rayon: rayon || MaTable.Courses.devinerRayon(nom), peremption: peremption || null, ajouteLe: U.aujourdhui(), epuise: false, modifieLe: new Date().toISOString() };
     etat.gardeManger.push(g);
     return g;
   }
@@ -97,7 +97,7 @@
   // « Que cuisiner ce soir avec ce que j'ai ? » : trois recettes rapides, priorité aux produits à consommer vite.
   function idéesAvecGardeManger(etat, options) {
     options = options || {};
-    const dispo = etat.gardeManger.filter(g => !g.epuise);
+    const dispo = etat.gardeManger.filter(g => !g.epuise && !g.retire);
     if (!dispo.length) return [];
     const auj = options.aujourdhui || U.aujourdhui();
     const cles = dispo.map(g => ({ cle: U.racineMot(g.nom), urgent: (() => { const j = joursAvantPeremption(g, auj); return j != null && j <= 3; })(), nom: g.nom }));

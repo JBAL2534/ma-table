@@ -89,6 +89,7 @@
       M().planBatch(cible);
     }
     cible.generee = new Date().toISOString();
+    cible.modifieLe = cible.generee;
     cible.copieDe = lundiSource;
     etat.semaines[lundiCible] = cible;
     return cible;

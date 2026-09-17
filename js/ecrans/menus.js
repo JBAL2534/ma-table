@@ -95,7 +95,7 @@
       rep && { ico: '↔️', libelle: 'Déplacer vers un autre jour', action: () => choisirJour(s, date, creneau) },
       rep && rep.recetteId && { ico: '🧺', libelle: 'Ajouter les ingrédients aux courses', action: () => { const r = M.recetteParId(etat, rep.recetteId); if (r) ajouterRecetteAuxCourses(r, rep.type === 'lunchbox' ? 2 : 3); } },
       rep && rep.recetteId && passe && { ico: '⭐', libelle: 'Noter ce repas', action: () => MaTable.ecrans.historique.noter(date, creneau) },
-      rep && { ico: '🗑️', libelle: 'Retirer de la semaine', danger: true, action: () => { s.repas[date][creneau] = null; if (s.batch) { for (const p of s.batch.preparations) p.jours = p.jours.filter(j => j !== date); s.batch.preparations = s.batch.preparations.filter(p => p.jours.length); M.planBatch(s); } sauver(); } },
+      rep && { ico: '🗑️', libelle: 'Retirer de la semaine', danger: true, action: () => { s.repas[date][creneau] = null; if (s.batch) { for (const p of s.batch.preparations) p.jours = p.jours.filter(j => j !== date); s.batch.preparations = s.batch.preparations.filter(p => p.jours.length); M.planBatch(s); } M.toucherSemaine(s); sauver(); } },
     ]);
   }
   function choisirJour(s, date, creneau) {

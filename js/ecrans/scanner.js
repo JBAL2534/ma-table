@@ -155,7 +155,7 @@
         for (const a of articles) S.ajouterGardeManger(etat, { nom: a.nom, rayon: a.rayon });
         // Ce qui était sur la liste pour ce magasin et qui figure sur le ticket est considéré acheté.
         const noms = new Set(articles.map(a => U.racineMot(a.nom)));
-        etat.liste = etat.liste.filter(x => !(x.magasin === magasin.value && noms.has(U.racineMot(x.nom))));
+        for (const x of etat.liste.slice()) if (x.magasin === magasin.value && noms.has(U.racineMot(x.nom))) C.archiver(etat, x, 'achete');
         sauver(); vibrer(20);
         toast('Passage enregistré dans l\u2019historique' + (m ? ' · ' + U.euros(m) : '') + '.');
       } }] });

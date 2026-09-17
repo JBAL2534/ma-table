@@ -268,6 +268,34 @@ test('la photo n\u2019apparaît qu\u2019avec une clé, et l\u2019import propose 
   assert.deepStrictEqual(erreurs, []);
 });
 
+test('la carte de synchronisation guide et réagit', async () => {
+  const { w, erreurs } = creerPage();
+  w.MaTable.app.demarrer(); fermerFeuilles(w);
+  const etat = w.MaTable.Stockage.etat; etat.utilisateur = 'm1';
+  aller(w, 'profil', {});
+  assert.ok(texte(contenu(w)).includes('Synchronisation entre appareils') && texte(contenu(w)).includes('Tokens (classic)'), 'carte et mode d\u2019emploi');
+  const gists = {};
+  w.MaTable.Synchro.fetchImpl = async (url, o) => {
+    const h = { get: () => '"1"' };
+    if (url.endsWith('/gists?per_page=100')) return { ok: true, status: 200, headers: h, json: async () => [] };
+    if (o.method === 'POST') { gists.g1 = { id: 'g1', files: { 'ma-table.json': { content: JSON.parse(o.body).files['ma-table.json'].content } } }; return { ok: true, status: 201, headers: h, json: async () => gists.g1 }; }
+    if (o.method === 'GET') return { ok: true, status: 200, headers: h, json: async () => gists.g1 };
+    return { ok: true, status: 200, headers: h, json: async () => gists.g1 };
+  };
+  contenu(w).querySelector('input[aria-label="Jeton GitHub"]').value = 'ghp_test';
+  cliquer(boutons(w).find(b => /Activer la synchronisation/.test(texte(b))));
+  await attendre(50);
+  assert.ok(w.MaTable.Synchro.actif(etat), 'activée');
+  assert.ok(texte(contenu(w)).includes('À jour') || texte(contenu(w)).includes('Activée'), 'statut affiché : ' + texte(contenu(w)).slice(0, 80));
+  assert.ok(boutons(w).some(b => /Synchroniser maintenant/.test(texte(b))));
+  cliquer(boutons(w).find(b => /^Désactiver$/.test(texte(b))));
+  cliquer(boutons(w, dialogues(w)[0]).find(b => /^Désactiver$/.test(texte(b))));
+  await attendre(10);
+  assert.ok(!w.MaTable.Synchro.actif(etat));
+  w.MaTable.Synchro.fetchImpl = null; w.MaTable.Synchro.arreter();
+  assert.deepStrictEqual(erreurs, []);
+});
+
 test('les réglages influencent la proposition (temps max, jour du batch, repas plaisir)', () => {
   const { w } = creerPage();
   w.MaTable.app.demarrer(); fermerFeuilles(w);

@@ -80,6 +80,7 @@
       window.addEventListener('hashchange', () => this.monter());
       this.monter();
       this.premierLancement();
+      if (MaTable.Synchro) MaTable.Synchro.demarrer();
       if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
         navigator.serviceWorker.register('sw.js').catch(() => { /* hors ligne indisponible, l'application marche quand même */ });
       }
