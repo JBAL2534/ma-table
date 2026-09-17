@@ -1,0 +1,11 @@
+{
+  "name": "ma-table",
+  "version": "1.0.0",
+  "description": "Assistant familial : menus sains, batch cooking du dimanche, liste de courses multi-magasins. PWA installable sur iPhone.",
+  "private": true,
+  "scripts": {
+    "test": "node test/run-tests.js && node test/ecrans.js",
+    "start": "python3 -m http.server 8792"
+  },
+  "license": "UNLICENSED"
+}

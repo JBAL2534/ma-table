@@ -1,0 +1,16 @@
+{
+  "name": "Ma Table",
+  "short_name": "Ma Table",
+  "description": "Menus sains, batch cooking du dimanche et liste de courses multi-magasins pour la famille.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F3EA",
+  "theme_color": "#7A9E7E",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
