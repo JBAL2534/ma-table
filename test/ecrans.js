@@ -296,6 +296,28 @@ test('la carte de synchronisation guide et réagit', async () => {
   assert.deepStrictEqual(erreurs, []);
 });
 
+test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', async () => {
+  const { w, erreurs } = creerPage();
+  w.MaTable.app.demarrer(); fermerFeuilles(w);
+  assert.strictEqual(typeof w.ZXing, 'object', 'ZXing est chargé par la page');
+  // Faux appareil : une caméra, pas de BarcodeDetector, et un lecteur ZXing qui « lit » un code.
+  delete w.BarcodeDetector;
+  Object.defineProperty(w.navigator, 'mediaDevices', { value: { getUserMedia: async () => ({ getTracks: () => [] }) }, configurable: true });
+  let appels = 0, reinitialise = 0;
+  const vrai = w.ZXing.BrowserMultiFormatReader;
+  w.ZXing.BrowserMultiFormatReader = class { constructor(indices) { assert.ok(indices.get(w.ZXing.DecodeHintType.POSSIBLE_FORMATS).includes(w.ZXing.BarcodeFormat.EAN_13)); } async decodeFromConstraints(c, video, cb) { appels++; assert.ok(c.video, 'contraintes caméra'); cb({ getText: () => '3017620422003' }); } reset() { reinitialise++; } };
+  w.fetch = async () => ({ ok: true, status: 200, json: async () => ({ status: 1, product: { product_name_fr: 'Produit ZXing', nutriscore_grade: 'b', categories: 'Test' } }) });
+  aller(w, 'scanner', {});
+  await attendre(30);
+  assert.strictEqual(appels, 1, 'ZXing démarré sur la caméra');
+  assert.ok(texte(contenu(w)).includes('Code lu : 3017620422003'), 'le code lu est affiché');
+  assert.ok(texte(contenu(w)).includes('Produit ZXing'), 'la fiche produit suit');
+  aller(w, 'menus', {});
+  assert.strictEqual(reinitialise, 1, 'la caméra est relâchée en quittant l\u2019écran');
+  w.ZXing.BrowserMultiFormatReader = vrai;
+  assert.deepStrictEqual(erreurs, []);
+});
+
 test('les réglages influencent la proposition (temps max, jour du batch, repas plaisir)', () => {
   const { w } = creerPage();
   w.MaTable.app.demarrer(); fermerFeuilles(w);
