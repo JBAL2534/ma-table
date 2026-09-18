@@ -2,8 +2,9 @@
 // Les nouveautés de chaque version sont affichées à la première ouverture qui suit la mise à jour.
 (function (racine) {
   racine.MaTable = racine.MaTable || {};
-  racine.MaTable.VERSION = '1.3.3';
+  racine.MaTable.VERSION = '1.3.4';
   racine.MaTable.NOUVEAUTES = {
+    '1.3.4': ['Scanner : le bouton « Réessayer » n’apparaît plus en permanence ; il ne s’affiche que si la caméra a été coupée ou refusée.'],
     '1.3.3': [
       'Scanner : un bouton ⏸ dans le cadre éteint la caméra depuis Ma Table et la rallume d’un tap. Préférez-le au bouton « Arrêter » d’iOS.',
       'Si iOS a coupé la caméra, le cadre dit clairement quoi faire : fermer complètement Ma Table puis la rouvrir.',

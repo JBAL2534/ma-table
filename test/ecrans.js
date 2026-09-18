@@ -113,6 +113,12 @@ test('la feuille de style a un mode sombre et des zones tactiles de 44 px', () =
   assert.ok(css.includes('prefers-color-scheme: dark'));
   assert.ok(/\.btn\s*\{[^}]*min-height:\s*44px/.test(css));
   assert.ok(css.includes('env(safe-area-inset-bottom)'));
+  // Un bouton marqué caché doit l'être à l'écran : la règle d'affichage des boutons ne doit pas l'emporter.
+  assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(css), 'règle [hidden] prioritaire');
+  const { w } = creerPage();
+  const style = w.document.createElement('style'); style.textContent = css; w.document.head.append(style);
+  const b = w.document.createElement('button'); b.className = 'btn chaud relancer'; b.hidden = true; w.document.body.append(b);
+  assert.strictEqual(w.getComputedStyle(b).display, 'none', 'un .btn caché est invisible');
   assert.ok(css.includes('Nunito'));
 });
 

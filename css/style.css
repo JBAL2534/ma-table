@@ -27,6 +27,8 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Un élément marqué « caché » l'est vraiment, même s'il porte une classe qui règle son affichage (.btn, .badge…). */
+[hidden] { display: none !important; }
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; overflow-x: hidden; background: var(--creme); color: var(--texte); font-family: var(--police); line-height: 1.45;
