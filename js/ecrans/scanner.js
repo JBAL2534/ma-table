@@ -27,8 +27,10 @@
     if (cameraPossible()) {
       const video = el('video', { playsinline: true, muted: true, autoplay: true });
       const indication = el('div', 'indication', 'Placez le code-barres dans le cadre');
-      conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), indication));
+      const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => { relancer.hidden = true; indication.textContent = 'Placez le code-barres dans le cadre'; demarrerCamera(video, indication, code => chercher(code, resultat)); surveillerCamera(video, indication, relancer); } }, '▶️ Relancer la caméra');
+      conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), relancer, indication));
       demarrerCamera(video, indication, code => chercher(code, resultat));
+      surveillerCamera(video, indication, relancer);
     } else {
       conteneur.append(el('div', 'carte douce', el('h3', {}, '📷 Saisie du code'), el('p', 'petit', 'La caméra n\u2019est pas disponible ici. Tapez les chiffres imprimés sous le code : la fiche arrive en une seconde.')));
     }
@@ -77,6 +79,28 @@
       boucle = setTimeout(tour, 200);
     };
     tour();
+  }
+
+  // Si le système coupe la caméra (bouton « Arrêter » d'iOS, autre application…), on le voit et on propose de relancer.
+  function cameraArretee(video) {
+    const flux = video && video.srcObject;
+    if (!flux || typeof flux.getTracks !== 'function') return false;
+    const pistes = flux.getTracks();
+    return pistes.length > 0 && pistes.every(t => t.readyState === 'ended' || t.enabled === false && t.muted);
+  }
+  let surveillance = null;
+  function surveillerCamera(video, indication, relancer) {
+    clearInterval(surveillance);
+    let demarrage = Date.now();
+    surveillance = setInterval(() => {
+      if (!document.body.contains(video)) { clearInterval(surveillance); return; }
+      if (cameraArretee(video) || (Date.now() - demarrage > 4000 && !video.srcObject && !flux && !lecteurZXing)) {
+        clearInterval(surveillance);
+        arreterCamera();
+        indication.textContent = 'Caméra arrêtée.';
+        relancer.hidden = false;
+      }
+    }, 1000);
   }
 
   // Lecture par ZXing : la caméra est gérée par la bibliothèque, qui analyse les images en continu.
@@ -208,5 +232,5 @@
   }
 
   MaTable.ecrans = MaTable.ecrans || {};
-  MaTable.ecrans.scanner = { monter, arreterCamera, quitter: arreterCamera };
+  MaTable.ecrans.scanner = { monter, arreterCamera, cameraArretee, quitter: () => { clearInterval(surveillance); arreterCamera(); } };
 })(typeof window !== 'undefined' ? window : globalThis);
