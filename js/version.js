@@ -2,8 +2,9 @@
 // Les nouveautés de chaque version sont affichées à la première ouverture qui suit la mise à jour.
 (function (racine) {
   racine.MaTable = racine.MaTable || {};
-  racine.MaTable.VERSION = '1.3.1';
+  racine.MaTable.VERSION = '1.3.2';
   racine.MaTable.NOUVEAUTES = {
+    '1.3.2': ['Scanner : « Relancer la caméra » demande la caméra dans le geste même, comme iOS l’exige ; si iOS la garde fermée, le message explique quoi faire.'],
     '1.3.1': ['Scanner : « Relancer la caméra » recharge la page, seule façon fiable de rouvrir la caméra après une coupure par iOS.'],
     '1.3.0': [
       'Scanner : si Open Food Facts ne connaît pas le code, trois bases sœurs sont interrogées (hygiène et cosmétique, entretien et maison, animaux).',

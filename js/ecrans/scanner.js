@@ -27,14 +27,14 @@
     if (cameraPossible()) {
       const video = el('video', { playsinline: true, muted: true, autoplay: true });
       const indication = el('div', 'indication', 'Placez le code-barres dans le cadre');
-      // Relancer = recharger la page : sur iPhone, une caméra coupée par le système ne se rouvre qu'ainsi.
-      // Les données sont enregistrées, on revient directement sur le Scanner.
+      // Relancer : la caméra est demandée dans le geste du doigt lui-même (exigence d'iOS), puis confiée au lecteur.
       const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => {
         relancer.hidden = true; indication.textContent = 'Redémarrage de la caméra…';
         clearInterval(surveillance); arreterCamera();
-        let recharge = false;
-        try { app().recharger('#scanner'); recharge = true; } catch (e) { recharge = false; }
-        if (!recharge) app().rafraichir();
+        if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { echecCamera(indication, relancer, BLOQUEE); return; }
+        navigator.mediaDevices.getUserMedia(CONTRAINTES)
+          .then(stream => { demarrerCamera(video, indication, code => chercher(code, resultat), relancer, stream); surveillerCamera(video, indication, relancer); })
+          .catch(() => echecCamera(indication, relancer, BLOQUEE));
       } }, '▶️ Relancer la caméra');
       conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), relancer, indication));
       demarrerCamera(video, indication, code => chercher(code, resultat), relancer);
@@ -53,14 +53,16 @@
     else conteneur.append(el('p', 'minuscule centre', 'Les fiches produits viennent d’Open Food Facts et de ses bases sœurs (hygiène, maison, animaux), collaboratives et gratuites. Un code inconnu que vous nommez est mémorisé.'));
   }
 
+  const CONTRAINTES = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false };
+  const BLOQUEE = 'iOS garde la caméra fermée pour cette ouverture de l’application. Fermez complètement Ma Table (balayez-la vers le haut dans le sélecteur d’applications), puis rouvrez-la. En attendant, tapez le code ci-dessous.';
   function echecCamera(indication, relancer, texte) {
     indication.textContent = texte;
     if (relancer) relancer.hidden = false;
   }
-  async function demarrerCamera(video, indication, auCode, relancer) {
-    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode, relancer);
+  async function demarrerCamera(video, indication, auCode, relancer, fluxDejaOuvert) {
+    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode, relancer, fluxDejaOuvert);
     try {
-      flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
+      flux = fluxDejaOuvert || await navigator.mediaDevices.getUserMedia(CONTRAINTES);
       video.srcObject = flux;
       await video.play();
     } catch (e) {
@@ -121,7 +123,7 @@
   }
 
   // Lecture par ZXing : la caméra est gérée par la bibliothèque, qui analyse les images en continu.
-  async function demarrerZXing(video, indication, auCode, relancer) {
+  async function demarrerZXing(video, indication, auCode, relancer, fluxDejaOuvert) {
     const Z = window.ZXing;
     let pause = false;
     const confirmer = S.confirmateur(2500);
@@ -130,7 +132,7 @@
       indices.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128]);
       indices.set(Z.DecodeHintType.TRY_HARDER, true);
       lecteurZXing = new Z.BrowserMultiFormatReader(indices, 250);
-      await lecteurZXing.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }, video, (resultat) => {
+      const surResultat = (resultat) => {
         if (!resultat || pause) return;
         const brut = resultat.getText();
         if (!brut) return;
@@ -140,7 +142,10 @@
         indication.textContent = 'Code lu : ' + code;
         auCode(code);
         boucle = setTimeout(() => { pause = false; indication.textContent = 'Placez le code-barres dans le cadre'; }, 4000);
-      });
+      };
+      if (fluxDejaOuvert) { flux = fluxDejaOuvert; await lecteurZXing.decodeFromStream(fluxDejaOuvert, video, surResultat); }
+      else await lecteurZXing.decodeFromConstraints(CONTRAINTES, video, surResultat);
+      if (/Redémarrage/.test(indication.textContent)) indication.textContent = 'Placez le code-barres dans le cadre';
     } catch (e) {
       arreterCamera();
       echecCamera(indication, relancer, 'Caméra indisponible. Touchez « Relancer », ou tapez le code ci-dessous. Si elle reste bloquée : fermez complètement Ma Table et rouvrez-la.');

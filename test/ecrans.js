@@ -408,15 +408,24 @@ test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', 
   const relancer = contenu(w).querySelector('.viseur .relancer');
   assert.ok(!relancer.hidden && /Caméra arrêtée/.test(texte(contenu(w))), 'coupure détectée, bouton proposé');
   assert.strictEqual(reinitialise, 1, 'le lecteur a été arrêté');
-  let rechargements = 0;
-  w.MaTable.app.recharger = (hash) => { rechargements++; w.location.hash = hash; throw new Error('pas de rechargement dans le test'); };
+  // Relancer : la caméra est demandée dans le geste, puis confiée au lecteur (decodeFromStream) ; le bouton disparaît.
+  let demandes = 0, depuisFlux = 0;
+  w.navigator.mediaDevices.getUserMedia = async () => { demandes++; return { getTracks: () => [{ readyState: 'live' }] }; };
+  w.ZXing.BrowserMultiFormatReader.prototype.decodeFromStream = async function (stream, v, cb) { depuisFlux++; cb({ getText: () => '3017620422003' }); cb({ getText: () => '3017620422003' }); };
   cliquer(relancer);
   await attendre(30);
-  assert.strictEqual(rechargements, 1, 'le bouton recharge la page');
-  assert.ok(w.location.hash.startsWith('#scanner'), 'et revient sur le Scanner');
-  assert.strictEqual(appels, 2, 'à défaut de rechargement (test), l\u2019écran est remonté');
-  assert.ok(contenu(w).querySelector('.viseur video') !== video, 'nouvelle vidéo');
-  assert.ok(contenu(w).querySelector('.viseur .relancer').hidden, 'bouton caché à nouveau');
+  assert.strictEqual(demandes, 1, 'la caméra est demandée dans le geste');
+  assert.strictEqual(depuisFlux, 1, 'le lecteur repart du flux ouvert');
+  assert.ok(relancer.hidden, 'le bouton disparaît');
+  assert.ok(!/Caméra arrêtée|Redémarrage/.test(texte(contenu(w))), 'le message revient à la normale');
+  // Si iOS refuse la caméra, le message explique quoi faire et le bouton reste disponible.
+  video.srcObject = { getTracks: () => [{ readyState: 'live' }] }; await attendre(1100);
+  video.srcObject = { getTracks: () => [{ readyState: 'ended' }] }; await attendre(1100);
+  assert.ok(!relancer.hidden, 'coupure détectée à nouveau');
+  w.navigator.mediaDevices.getUserMedia = async () => { throw new Error('NotAllowedError'); };
+  cliquer(relancer);
+  await attendre(30);
+  assert.ok(!relancer.hidden && /Fermez complètement Ma Table/.test(texte(contenu(w))), 'consigne claire quand iOS refuse');
   aller(w, 'menus', {});
   assert.strictEqual(reinitialise, 2, 'la caméra est relâchée en quittant l\u2019écran');
   w.ZXing.BrowserMultiFormatReader = vrai;
