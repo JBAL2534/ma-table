@@ -13,7 +13,8 @@ iPhone (PWA installable, fonctionne hors ligne), 100 % en français, sans compte
   Fiche recette avec portions ajustables, astuce pour l'enfant, conservation. Écran « batch
   cooking » avec l'ordre de production (Cookeo et air fryer en parallèle), les boîtes et les
   étiquettes imprimables. 42 recettes de départ, recettes personnelles.
-- **Courses** : liste vivante répartie par magasin (Supermarché, Biocoop, Grand Frais, Marché),
+- **Courses** : liste vivante répartie par magasin (Supermarché, Biocoop, Grand Frais, Marché au
+  départ ; la famille ajoute, renomme, ordonne ou retire ses magasins dans Profil),
   rayons dans l'ordre d'un parcours réel, ajout rapide avec autocomplétion et dictée, essentiels
   réactivables d'un tap, suggestions tirées de l'historique, mode « En magasin » plein écran avec
   compteur et écran maintenu allumé, « Terminer ce magasin » qui archive et remplit le garde-manger.

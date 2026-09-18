@@ -344,6 +344,43 @@ test('dans Essentiels, le magasin se change d\u2019un tap et l\u2019habitude est
   assert.deepStrictEqual(erreurs, []);
 });
 
+test('un magasin ajouté dans Profil apparaît dans les courses et le ticket', async () => {
+  const { w, erreurs } = creerPage();
+  w.MaTable.app.demarrer(); fermerFeuilles(w);
+  const etat = w.MaTable.Stockage.etat; etat.utilisateur = 'm1';
+  aller(w, 'profil', {});
+  assert.ok(texte(contenu(w)).includes('Mes magasins'));
+  cliquer(boutons(w).find(b => /Ajouter un magasin/.test(texte(b))));
+  let d = dialogues(w)[0]; d.querySelector('input[type="text"]').value = 'Picard';
+  cliquer(boutons(w, d).find(b => b.getAttribute('aria-label') === 'Pictogramme ❄️'));
+  cliquer(boutons(w, d).find(b => /^Enregistrer$/.test(texte(b))));
+  await attendre(5);
+  const picard = etat.magasins.find(m => m.nom === 'Picard');
+  assert.ok(picard && picard.emoji === '❄️', 'magasin créé');
+  assert.ok(texte(contenu(w)).includes('❄️ Picard'), 'affiché dans Profil');
+  // Renommer
+  cliquer(boutons(w).find(b => /❄️ Picard/.test(texte(b))));
+  d = dialogues(w)[0]; d.querySelector('input[type="text"]').value = 'Picard Surgelés';
+  cliquer(boutons(w, d).find(b => /^Enregistrer$/.test(texte(b))));
+  await attendre(5);
+  assert.strictEqual(w.MaTable.Courses.nomMagasin(picard.id), 'Picard Surgelés');
+  // Un article envoyé à Picard depuis la liste : l'onglet apparaît.
+  w.MaTable.Courses.ajouter(etat.liste, { nom: 'Glace vanille', magasin: picard.id }); w.MaTable.Stockage.sauver();
+  aller(w, 'courses', { onglet: 'liste', magasin: picard.id });
+  assert.ok(texte(contenu(w)).includes('Picard Surgelés') && texte(contenu(w)).includes('Glace vanille'), 'onglet et article');
+  // Retirer : l'article est réaffecté, rien ne casse.
+  aller(w, 'profil', {});
+  cliquer(boutons(w).find(b => /Picard Surgelés/.test(texte(b))));
+  cliquer(boutons(w, dialogues(w)[0]).find(b => /Retirer ce magasin/.test(texte(b))));
+  await attendre(5);
+  cliquer(boutons(w, dialogues(w)[dialogues(w).length - 1]).find(b => /^Retirer$/.test(texte(b))));
+  await attendre(10);
+  assert.ok(picard.retire && !etat.liste.some(a => a.magasin === picard.id), 'retiré et réaffecté');
+  assert.ok(texte(contenu(w)).includes('Retirés : Picard Surgelés'), 'rétablissable');
+  aller(w, 'courses', {}); verifierSain(w, erreurs, 'courses après retrait');
+  aller(w, 'historique', { onglet: 'stats' }); verifierSain(w, erreurs, 'stats après retrait');
+});
+
 test('les réglages influencent la proposition (temps max, jour du batch, repas plaisir)', () => {
   const { w } = creerPage();
   w.MaTable.app.demarrer(); fermerFeuilles(w);

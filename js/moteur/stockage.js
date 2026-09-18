@@ -36,6 +36,7 @@
       recettesMasquees: [],           // identifiants de recettes de départ que la famille ne veut plus voir
       semaines: {},                   // lundi ISO → semaine
       avis: [],                       // { id, date, creneau, recetteId, titre, note, enfant, quand }
+      magasins: MaTable.Courses ? MaTable.Courses.MAGASINS_DEPART.map(m => Object.assign({}, m)) : [],
       liste: [],                      // articles de la liste vivante
       listeArchivee: [],              // articles retirés ou achetés (jamais supprimés : la fusion en a besoin)
       preferencesMagasin: {},         // nom normalisé → { magasin, rayon }
@@ -59,6 +60,7 @@
       if (etat.reglages[cle] === undefined) etat.reglages[cle] = d.reglages[cle];
     }
     if (!etat.famille.membres) etat.famille.membres = d.famille.membres;
+    if (!Array.isArray(etat.magasins) || !etat.magasins.length) etat.magasins = MaTable.Courses.MAGASINS_DEPART.map(m => Object.assign({}, m));
     etat.version = VERSION;
     return etat;
   }
@@ -142,6 +144,11 @@
       const nouvelles = (p.mesures || []).filter(x => !dates.has(x.date));
       if (nouvelles.length) { moi.poids[id].mesures = (moi.poids[id].mesures || []).concat(nouvelles); bilan.autres++; }
     }
+    for (const m of autre.magasins || []) {
+      const i = moi.magasins.findIndex(x => x.id === m.id);
+      if (i === -1) { moi.magasins.push(m); bilan.autres++; }
+      else if (!plusRecent(moi.magasins[i], m) && JSON.stringify(moi.magasins[i]) !== JSON.stringify(m)) { moi.magasins[i] = m; bilan.autres++; }
+    }
     for (const id of autre.recettesMasquees || []) if (!moi.recettesMasquees.includes(id)) { moi.recettesMasquees.push(id); bilan.autres++; }
     bilan.total = Object.values(bilan).reduce((t, n) => t + n, 0);
     return bilan;
@@ -170,10 +177,12 @@
       }
       if (!etat) etat = etatDefaut();
       this.etat = completer(etat);
+      MaTable.Courses.definirMagasins(this.etat);
       return this.etat;
     },
     sauver() {
       if (!this.etat) return;
+      MaTable.Courses.definirMagasins(this.etat);
       this.etat.modifieLe = new Date().toISOString();
       support().setItem(CLE, JSON.stringify(this.etat));
       this.ecouteurs.forEach(f => { try { f(this.etat); } catch (e) { /* un écran en erreur n'empêche pas l'enregistrement */ } });
@@ -228,7 +237,7 @@
       if (!brut) return null;
       try { return JSON.parse(brut); } catch (e) { return null; }
     },
-    reinitialiserPourTests() { this.etat = etatDefaut(); this.ecouteurs = []; return this.etat; },
+    reinitialiserPourTests() { this.etat = etatDefaut(); this.ecouteurs = []; MaTable.Courses.definirMagasins(this.etat); return this.etat; },
     etatDefaut, fusionnerEtat, completer,
   };
 

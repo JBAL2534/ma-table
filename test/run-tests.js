@@ -554,6 +554,39 @@ test('prix mémorisés depuis les tickets : dernier prix, estimation, variations
   assert.deepStrictEqual(H.variationsPrix(etatNeuf(), 3), []);
 });
 
+test('magasins personnalisables : ajouter, renommer, ordonner, retirer, rétablir, fusionner', () => {
+  const etat = etatNeuf(); const C = T.Courses;
+  assert.strictEqual(C.MAGASINS.length, 4);
+  const p = C.ajouterMagasin(etat, { nom: 'Picard', emoji: '❄️' });
+  assert.ok(p.id.startsWith('m-') && C.MAGASINS.length === 5 && etat.reglages.magasins.includes(p.id));
+  assert.strictEqual(C.nomMagasin(p.id), 'Picard'); assert.strictEqual(C.emojiMagasin(p.id), '❄️');
+  C.modifierMagasin(etat, 'supermarche', { nom: 'Leclerc' });
+  assert.strictEqual(C.nomMagasin('supermarche'), 'Leclerc');
+  assert.ok(C.deplacerMagasin(etat, p.id, -1)); assert.strictEqual(C.MAGASINS[3].id, p.id, 'Picard est remonté');
+  assert.strictEqual(C.deplacerMagasin(etat, 'supermarche', -1), false, 'le premier ne monte pas');
+  // Un article affecté à Picard, puis Picard retiré : l'article est réaffecté, l'historique garde le nom.
+  const a = C.ajouter(etat.liste, { nom: 'Glace', magasin: p.id });
+  etat.achats.push({ id: 'x', date: '2026-09-10', magasin: p.id, articles: [{ nom: 'Glace' }], montant: 5 });
+  assert.strictEqual(C.retirerMagasin(etat, p.id), 1);
+  assert.notStrictEqual(a.magasin, p.id); assert.ok(!C.MAGASINS.some(m => m.id === p.id)); assert.strictEqual(C.nomMagasin(p.id), 'Picard', 'lisible dans l\u2019historique');
+  assert.ok(!etat.reglages.magasins.includes(p.id));
+  C.retablirMagasin(etat, p.id); assert.ok(C.MAGASINS.some(m => m.id === p.id) && etat.reglages.magasins.includes(p.id));
+  // Impossible de retirer le dernier actif.
+  for (const id of ['biocoop', 'grand_frais', 'marche', p.id]) C.retirerMagasin(etat, id);
+  assert.strictEqual(C.retirerMagasin(etat, 'supermarche'), -1);
+  // Fusion : un magasin ajouté sur l'autre appareil arrive ; le renommage le plus récent gagne.
+  const autre = T.Stockage.etatDefaut();
+  autre.magasins.push({ id: 'm-autre', nom: 'Boucherie', emoji: '🥩', ordre: 9, modifieLe: '2026-09-18T10:00:00Z' });
+  autre.magasins.find(m => m.id === 'supermarche').nom = 'Carrefour'; autre.magasins.find(m => m.id === 'supermarche').modifieLe = '2099-01-01T00:00:00Z';
+  T.Stockage.fusionnerEtat(etat, autre);
+  assert.ok(etat.magasins.some(m => m.id === 'm-autre')); assert.strictEqual(etat.magasins.find(m => m.id === 'supermarche').nom, 'Carrefour');
+  // Le schéma du ticket propose les magasins courants.
+  C.definirMagasins(etat);
+  assert.ok(T.IA.schemaTicket().properties.magasin.enum.includes('m-autre'));
+  // Un état ancien sans magasins est complété.
+  const vieux = T.Stockage.etatDefaut(); delete vieux.magasins; T.Stockage.completer(vieux); assert.strictEqual(vieux.magasins.length, 4);
+});
+
 (async () => {
   for (const t of tests) {
     try { await t.f(); reussis++; console.log('  ✓ ' + t.nom); }

@@ -78,9 +78,42 @@
 
   function carteMagasins(etat) {
     const r = etat.reglages;
-    return el('div', 'carte', el('h2', {}, '🛒 Magasins fréquentés'), el('p', 'petit', 'Les articles sont répartis entre ces magasins. Changer le magasin d’un article dans la liste apprend votre habitude.'),
-      C.MAGASINS.map(m => el('label', 'case', el('input', { type: 'checkbox', checked: r.magasins.includes(m.id), onchange: ev => { if (ev.target.checked) { if (!r.magasins.includes(m.id)) r.magasins.push(m.id); } else if (r.magasins.length > 1) r.magasins = r.magasins.filter(x => x !== m.id); else { ev.target.checked = true; toast('Gardez au moins un magasin.'); return; } toucherReglages(); sauver(); } }), m.emoji + ' ' + m.nom)),
-      Object.keys(etat.preferencesMagasin).length ? el('p', 'minuscule', U.pluriel(Object.keys(etat.preferencesMagasin).length, 'habitude apprise', 'habitudes apprises') + '.') : null);
+    const visibles = C.magasins();
+    const retires = etat.magasins.filter(m => m.retire);
+    return el('div', 'carte', el('h2', {}, '🛒 Mes magasins'), el('p', 'petit', 'Les articles sont répartis entre ces magasins, dans cet ordre. Touchez un nom pour le renommer ou changer son pictogramme. Décochez un magasin pour le mettre en pause sans le perdre.'),
+      el('ul', 'liste', visibles.map((m, i) => el('li', {},
+        el('input', { type: 'checkbox', 'aria-label': 'Utiliser ' + m.nom, checked: r.magasins.includes(m.id), style: 'width:22px;height:22px;accent-color:var(--sauge);margin:0', onchange: ev => {
+          if (ev.target.checked) { if (!r.magasins.includes(m.id)) r.magasins.push(m.id); }
+          else if (r.magasins.filter(id => visibles.some(v => v.id === id)).length > 1) r.magasins = r.magasins.filter(x => x !== m.id);
+          else { ev.target.checked = true; toast('Gardez au moins un magasin actif.'); return; }
+          toucherReglages(); sauver();
+        } }),
+        el('button', { class: 'pousse', style: 'text-align:left;background:none;border:0;padding:0;min-height:44px', onclick: () => formulaireMagasin(m) }, el('div', 'gras', m.emoji + ' ' + m.nom), el('div', 'petit', r.magasins.includes(m.id) ? 'actif' : 'en pause')),
+        el('button', { class: 'btn icone', 'aria-label': 'Monter ' + m.nom, disabled: i === 0, onclick: () => { C.deplacerMagasin(etat, m.id, -1); sauver(); } }, '▲'),
+        el('button', { class: 'btn icone', 'aria-label': 'Descendre ' + m.nom, disabled: i === visibles.length - 1, onclick: () => { C.deplacerMagasin(etat, m.id, 1); sauver(); } }, '▼')))),
+      el('div', 'boutons', el('button', { class: 'btn principal', onclick: () => formulaireMagasin(null) }, '＋ Ajouter un magasin')),
+      retires.length ? el('p', 'petit', 'Retirés : ' + retires.map(m => m.nom).join(', ') + '. ', el('button', { class: 'btn discret petit-btn', onclick: () => feuille({ titre: 'Rétablir un magasin', contenu: (corps, fermer) => el('div', 'menu-actions', retires.map(m => el('button', { onclick: () => { C.retablirMagasin(etat, m.id); fermer(); sauver(); } }, el('span', 'ico', m.emoji), el('span', 'pousse', m.nom)))) }) }, 'Rétablir…')) : null,
+      Object.keys(etat.preferencesMagasin).length ? el('p', 'minuscule', U.pluriel(Object.keys(etat.preferencesMagasin).length, 'habitude apprise', 'habitudes apprises') + ' (article → magasin).') : null);
+  }
+  function formulaireMagasin(m) {
+    const etat = E();
+    const nom = el('input', { type: 'text', value: m ? m.nom : '', placeholder: 'Ex. : Picard, Boucherie, Leclerc' });
+    let emoji = m ? m.emoji : '🏪';
+    const palette = el('div', 'puces', C.EMOJIS_MAGASIN.map(e => el('button', { class: 'puce', 'aria-pressed': String(e === emoji), 'aria-label': 'Pictogramme ' + e, onclick: (ev) => { emoji = e; palette.querySelectorAll('.puce').forEach(b => b.setAttribute('aria-pressed', 'false')); ev.currentTarget.setAttribute('aria-pressed', 'true'); } }, e)));
+    feuille({ titre: m ? 'Modifier ' + m.nom : 'Nouveau magasin', focus: true,
+      contenu: el('div', {}, el('label', 'champ', el('span', {}, 'Nom'), nom), el('div', 'champ', el('span', {}, 'Pictogramme'), palette),
+        m ? el('button', { class: 'btn danger large', onclick: async () => {
+          if (!(await confirmer(m.nom + ' disparaît de la liste et des onglets. Ses articles sont réaffectés, son historique de dépenses reste lisible, et vous pourrez le rétablir.', { ok: 'Retirer', danger: true }))) return;
+          const n = C.retirerMagasin(etat, m.id);
+          if (n === -1) { toast('Impossible de retirer le dernier magasin.'); return; }
+          MaTable.ui.fermerTout(); toucherReglages(); sauver(); toast(m.nom + ' retiré' + (n ? ' · ' + U.pluriel(n, 'article réaffecté', 'articles réaffectés') : '') + '.');
+        } }, 'Retirer ce magasin') : null),
+      actions: [{ libelle: 'Annuler' }, { libelle: 'Enregistrer', classe: 'principal', action: () => {
+        const v = nom.value.trim();
+        if (!v) { toast('Donnez un nom au magasin.'); return false; }
+        if (m) C.modifierMagasin(etat, m.id, { nom: v, emoji }); else C.ajouterMagasin(etat, { nom: v, emoji });
+        toucherReglages(); sauver();
+      } }] });
   }
 
   function carteDrive(etat) {

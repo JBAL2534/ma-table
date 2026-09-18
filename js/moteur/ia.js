@@ -22,10 +22,12 @@
       commentaire: { type: 'string', description: 'Une phrase courte et chaleureuse, ou chaîne vide.' },
     },
   };
-  const SCHEMA_TICKET = {
+  function schemaTicket() {
+    const ids = MaTable.Courses.magasins().map(m => m.id);
+    return {
     type: 'object', additionalProperties: false, required: ['magasin', 'date', 'montant', 'articles'],
     properties: {
-      magasin: { type: 'string', enum: ['supermarche', 'biocoop', 'grand_frais', 'marche', 'inconnu'] },
+      magasin: { type: 'string', enum: ids.concat(['inconnu']), description: 'Identifiant du magasin parmi : ' + MaTable.Courses.magasins().map(m => m.id + ' = ' + m.nom).join(', ') + '. inconnu si illisible.' },
       date: { type: 'string', description: 'Date du ticket au format AAAA-MM-JJ, ou chaîne vide.' },
       montant: { type: 'number', description: 'Total payé en euros, 0 si illisible.' },
       articles: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['nom', 'prix', 'rayon'], properties: {
@@ -33,7 +35,8 @@
         rayon: { type: 'string', enum: ['Fruits & légumes', 'Viandes & poissons', 'Crèmerie', 'Épicerie', 'Surgelés', 'Boissons', 'Hygiène & maison'] },
       } } },
     },
-  };
+    };
+  }
 
   const CONSIGNES = {
     produit: 'Photo d’un ou plusieurs produits alimentaires ou ménagers, pris en magasin ou à la maison, en France. Identifie chaque produit distinct visible. Réponds en français.',
@@ -81,13 +84,13 @@
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
       { type: 'text', text: CONSIGNES[mode] || CONSIGNES.produit },
     ];
-    const res = await appeler(etat, contenu, mode === 'ticket' ? SCHEMA_TICKET : SCHEMA_ARTICLES, fetchImpl);
+    const res = await appeler(etat, contenu, mode === 'ticket' ? schemaTicket() : SCHEMA_ARTICLES, fetchImpl);
     return nettoyer(res, mode);
   }
   function nettoyer(res, mode) {
     if (mode === 'ticket') {
       return {
-        magasin: ['supermarche', 'biocoop', 'grand_frais', 'marche'].includes(res.magasin) ? res.magasin : 'supermarche',
+        magasin: MaTable.Courses.magasins().some(m => m.id === res.magasin) ? res.magasin : (MaTable.Courses.magasins()[0] || {}).id || 'supermarche',
         date: /^\d{4}-\d{2}-\d{2}$/.test(res.date || '') ? res.date : null,
         montant: Number(res.montant) > 0 ? Math.round(Number(res.montant) * 100) / 100 : null,
         articles: (res.articles || []).filter(a => a && a.nom).map(a => ({ nom: U.majuscule(String(a.nom).trim()), prix: Number(a.prix) || null, rayon: a.rayon })),
@@ -126,5 +129,5 @@
     });
   }
 
-  MaTable.IA = { MODELE, active, cle, appeler, analyserPhoto, nettoyer, verifierCle, redimensionner, SCHEMA_ARTICLES, SCHEMA_TICKET };
+  MaTable.IA = { MODELE, active, cle, appeler, analyserPhoto, nettoyer, verifierCle, redimensionner, SCHEMA_ARTICLES, schemaTicket };
 })(typeof window !== 'undefined' ? window : globalThis);

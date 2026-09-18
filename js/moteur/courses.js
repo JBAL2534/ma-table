@@ -3,12 +3,71 @@
   const MaTable = racine.MaTable = racine.MaTable || {};
   const U = MaTable.util;
 
-  const MAGASINS = [
-    { id: 'supermarche', nom: 'Supermarché', emoji: '🛒' },
-    { id: 'biocoop', nom: 'Biocoop', emoji: '🌿' },
-    { id: 'grand_frais', nom: 'Grand Frais', emoji: '🥬' },
-    { id: 'marche', nom: 'Marché', emoji: '🧺' },
+  // Les quatre magasins de départ. La famille peut en ajouter, renommer, réordonner ou retirer :
+  // la liste courante vit dans l'état (etat.magasins) et le registre ci-dessous la reflète.
+  const MAGASINS_DEPART = [
+    { id: 'supermarche', nom: 'Supermarché', emoji: '🛒', ordre: 1 },
+    { id: 'biocoop', nom: 'Biocoop', emoji: '🌿', ordre: 2 },
+    { id: 'grand_frais', nom: 'Grand Frais', emoji: '🥬', ordre: 3 },
+    { id: 'marche', nom: 'Marché', emoji: '🧺', ordre: 4 },
   ];
+  let registre = MAGASINS_DEPART.map(m => Object.assign({}, m));
+  function definirMagasins(etat) {
+    if (etat && Array.isArray(etat.magasins) && etat.magasins.length) registre = etat.magasins.slice().sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+    return registre;
+  }
+  // Magasins visibles (non retirés), dans l'ordre choisi.
+  function magasins() { return registre.filter(m => !m.retire); }
+  const EMOJIS_MAGASIN = ['🛒', '🌿', '🥬', '🧺', '🥖', '🥩', '🐟', '🧀', '🍷', '❄️', '🏪', '🏬', '🚗', '🍎', '💊', '🧴'];
+  function ajouterMagasin(etat, { nom, emoji }) {
+    nom = String(nom || '').trim();
+    if (!nom) return null;
+    const m = { id: 'm-' + U.idUnique('mag'), nom, emoji: emoji || '🏪', ordre: Math.max(0, ...etat.magasins.map(x => x.ordre || 0)) + 1, modifieLe: new Date().toISOString() };
+    etat.magasins.push(m);
+    if (!etat.reglages.magasins.includes(m.id)) etat.reglages.magasins.push(m.id);
+    definirMagasins(etat);
+    return m;
+  }
+  function modifierMagasin(etat, id, changements) {
+    const m = etat.magasins.find(x => x.id === id);
+    if (!m) return null;
+    Object.assign(m, changements, { modifieLe: new Date().toISOString() });
+    definirMagasins(etat);
+    return m;
+  }
+  // Retirer un magasin ne supprime rien : il est masqué, ses articles sont réaffectés, son historique reste lisible.
+  function retirerMagasin(etat, id) {
+    const m = etat.magasins.find(x => x.id === id);
+    if (!m) return 0;
+    const restants = etat.reglages.magasins.filter(x => x !== id && !(etat.magasins.find(y => y.id === x) || {}).retire);
+    if (!restants.length) return -1;
+    m.retire = true; m.modifieLe = new Date().toISOString();
+    etat.reglages.magasins = restants;
+    definirMagasins(etat);
+    let deplaces = 0;
+    for (const a of etat.liste) if (a.magasin === id) { a.magasin = affecter(a.nom, { preferencesMagasin: {}, magasins: restants }).magasin; toucher(a); deplaces++; }
+    for (const [k, v] of Object.entries(etat.preferencesMagasin)) if (v.magasin === id) delete etat.preferencesMagasin[k];
+    return deplaces;
+  }
+  function retablirMagasin(etat, id) {
+    const m = etat.magasins.find(x => x.id === id);
+    if (!m) return null;
+    m.retire = false; m.modifieLe = new Date().toISOString();
+    if (!etat.reglages.magasins.includes(id)) etat.reglages.magasins.push(id);
+    definirMagasins(etat);
+    return m;
+  }
+  function deplacerMagasin(etat, id, sens) {
+    const visibles = etat.magasins.filter(m => !m.retire).sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+    const i = visibles.findIndex(m => m.id === id);
+    const j = i + sens;
+    if (i === -1 || j < 0 || j >= visibles.length) return false;
+    const a = visibles[i], b = visibles[j];
+    [a.ordre, b.ordre] = [b.ordre, a.ordre];
+    a.modifieLe = b.modifieLe = new Date().toISOString();
+    definirMagasins(etat);
+    return true;
+  }
   const RAYONS = ['Fruits & légumes', 'Viandes & poissons', 'Crèmerie', 'Épicerie', 'Surgelés', 'Boissons', 'Hygiène & maison'];
 
   const MOTS_RAYON = [
@@ -50,8 +109,8 @@
       else if (MOTS_BIO.some(m => n.includes(m))) magasin = 'biocoop';
       else magasin = 'supermarche';
     }
-    const ouverts = ctx.magasins && ctx.magasins.length ? ctx.magasins : MAGASINS.map(m => m.id);
-    if (!ouverts.includes(magasin)) magasin = ouverts.includes('supermarche') ? 'supermarche' : ouverts[0];
+    const ouverts = (ctx.magasins && ctx.magasins.length ? ctx.magasins : magasins().map(m => m.id)).filter(id => !(registre.find(m => m.id === id) || {}).retire);
+    if (!ouverts.includes(magasin)) magasin = ouverts.includes('supermarche') ? 'supermarche' : (ouverts[0] || 'supermarche');
     return { magasin, rayon };
   }
 
@@ -129,7 +188,7 @@
   }
   function parMagasin(liste) {
     const res = {};
-    for (const m of MAGASINS) res[m.id] = [];
+    for (const m of magasins()) res[m.id] = [];
     for (const a of liste) (res[a.magasin] = res[a.magasin] || []).push(a);
     for (const k of Object.keys(res)) res[k] = trierRayons(res[k]);
     return res;
@@ -270,12 +329,14 @@
     return reste ? { qte, unite: null, nom: reste } : { qte: null, unite: null, nom: t };
   }
 
-  function nomMagasin(id) { const m = MAGASINS.find(x => x.id === id); return m ? m.nom : 'Supermarché'; }
-  function emojiMagasin(id) { const m = MAGASINS.find(x => x.id === id); return m ? m.emoji : '🛒'; }
+  function nomMagasin(id) { const m = registre.find(x => x.id === id); return m ? m.nom : 'Supermarché'; }
+  function emojiMagasin(id) { const m = registre.find(x => x.id === id); return m ? m.emoji : '🛒'; }
 
   MaTable.Courses = {
-    MAGASINS, RAYONS, affecter, devinerRayon, trouverCatalogue, ajouter, ajouterIngredients, estAuGardeManger, trierRayons, parMagasin, parRayon,
+    MAGASINS_DEPART, EMOJIS_MAGASIN, RAYONS, definirMagasins, magasins, ajouterMagasin, modifierMagasin, retirerMagasin, retablirMagasin, deplacerMagasin, affecter, devinerRayon, trouverCatalogue, ajouter, ajouterIngredients, estAuGardeManger, trierRayons, parMagasin, parRayon,
     changerMagasin, changerRayon, cocher, toucher, archiver, retirer, terminerMagasin, essentiels, basculerEssentiel, suggestions, autocompleter, nomsConnus, texteDrive,
     lienRecherche, nomMagasin, emojiMagasin, analyserSaisie, UNITES,
   };
+  // Compatibilité : Courses.MAGASINS renvoie toujours la liste courante des magasins visibles.
+  Object.defineProperty(MaTable.Courses, 'MAGASINS', { get: magasins });
 })(typeof window !== 'undefined' ? window : globalThis);
