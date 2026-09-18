@@ -633,6 +633,26 @@ test('convives : les quantités d\u2019un repas suivent le nombre de personnes',
   assert.ok(s.modifieLe, 'la semaine est datée pour la synchronisation');
 });
 
+test('bases sœurs en cascade et produits nommés par la famille', async () => {
+  const etat = etatNeuf(); const S = T.Scan;
+  const appels = [];
+  const fauxFetch = async (url) => {
+    appels.push(url.split('/')[2]);
+    if (url.includes('openbeautyfacts')) return { ok: true, status: 200, json: async () => ({ status: 1, product: { product_name_fr: 'Gel douche amande', brands: 'Marque', categories: 'Hygiène, Gels douche' } }) };
+    return { ok: false, status: 404, json: async () => ({ status: 0 }) };
+  };
+  const r = await S.chercherProduit(etat, '3600550000001', fauxFetch);
+  assert.deepStrictEqual(appels, ['world.openfoodfacts.org', 'world.openbeautyfacts.org'], 'on s’arrête à la première base qui connaît le code');
+  assert.strictEqual(r.produit.nom, 'Gel douche amande'); assert.strictEqual(r.produit.base, 'Open Beauty Facts'); assert.strictEqual(r.produit.rayon, 'Hygiène & maison');
+  const inconnu = await S.chercherProduit(etat, '4000000000001', async () => ({ ok: false, status: 404, json: async () => ({ status: 0 }) }));
+  assert.strictEqual(inconnu.produit, null);
+  const p = S.memoriserProduit(etat, '4000000000001', 'pain d’épices de la boulangerie');
+  assert.strictEqual(p.base, 'Notre famille'); assert.strictEqual(p.nom, 'Pain d’épices de la boulangerie');
+  const r2 = await S.chercherProduit(etat, '4000000000001', async () => { throw new Error('ne doit pas appeler'); });
+  assert.strictEqual(r2.source, 'memoire'); assert.strictEqual(r2.produit.nom, 'Pain d’épices de la boulangerie');
+  await assert.rejects(() => S.chercherProduit(etat, '5000000000001', async () => ({ ok: false, status: 500, json: async () => ({}) })), /ne répondent pas/);
+});
+
 (async () => {
   for (const t of tests) {
     try { await t.f(); reussis++; console.log('  ✓ ' + t.nom); }

@@ -43,7 +43,7 @@
     if (params.code) chercher(params.code, resultat);
     const recents = Object.values(etat.produits).sort((a, b) => (b.consulteLe || '').localeCompare(a.consulteLe || '')).slice(0, 12);
     if (recents.length) conteneur.append(el('div', 'carte', el('h3', {}, 'Derniers produits scannés'), el('ul', 'liste', recents.map(p => el('li', {}, el('span', 'ico', '🏷️'), el('button', { class: 'pousse', style: 'text-align:left;background:none;border:0;padding:0;min-height:44px', onclick: () => afficher(p, resultat) }, el('div', 'gras', p.nom), el('div', 'petit', [p.marque, p.quantite].filter(Boolean).join(' · '))), p.nutriscore ? el('span', 'badge nutri nutri-' + p.nutriscore, p.nutriscore) : null)))));
-    else conteneur.append(el('p', 'minuscule centre', 'Les fiches produits viennent d’Open Food Facts, une base collaborative et gratuite.'));
+    else conteneur.append(el('p', 'minuscule centre', 'Les fiches produits viennent d’Open Food Facts et de ses bases sœurs (hygiène, maison, animaux), collaboratives et gratuites. Un code inconnu que vous nommez est mémorisé.'));
   }
 
   function echecCamera(indication, relancer, texte) {
@@ -149,8 +149,12 @@
       sauverDoucement();
       if (!r.produit) {
         zone.innerHTML = '';
-        zone.append(el('div', 'carte', el('h3', {}, 'Produit inconnu'), el('p', 'sous', 'Open Food Facts ne connaît pas encore ce code (' + String(code).replace(/\D/g, '') + '). Vous pouvez l’ajouter sous un nom à vous.'),
-          el('div', 'boutons', el('button', { class: 'btn principal', onclick: async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8' }); if (n && n.trim()) MaTable.ecrans.courses.ajouterArticle(n.trim()); } }, '🧺 À acheter'), el('button', { class: 'btn', onclick: async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8' }); if (n && n.trim()) { S.ajouterGardeManger(etat, { nom: n }); sauver(); toast('Ajouté au garde-manger.'); } } }, '🥫 Je l’ai déjà'))));
+        const codePropre = String(code).replace(/\D/g, '');
+        const nommer = async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8', aide: 'Ma Table le mémorise pour ce code : au prochain scan, il sera reconnu, sur tous vos appareils.' }); if (!n || !n.trim()) return null; const p = S.memoriserProduit(etat, codePropre, n); sauverDoucement(); return p; };
+        zone.append(el('div', 'carte', el('h3', {}, 'Produit inconnu'), el('p', 'sous', 'Aucune des quatre bases Open Food Facts (alimentaire, hygiène, maison, animaux) ne connaît ce code (' + codePropre + '). Donnez-lui un nom : il sera reconnu la prochaine fois.'),
+          el('div', 'boutons',
+            el('button', { class: 'btn principal', onclick: async () => { const p = await nommer(); if (p) { afficher(p, zone); MaTable.ecrans.courses.ajouterArticle(p.nom); } } }, '🧺 À acheter'),
+            el('button', { class: 'btn', onclick: async () => { const p = await nommer(); if (p) { afficher(p, zone); S.ajouterGardeManger(etat, { nom: p.nom, rayon: p.rayon }); sauver(); toast('Ajouté au garde-manger.'); } } }, '🥫 Je l’ai déjà'))));
         return;
       }
       afficher(r.produit, zone);
@@ -165,7 +169,7 @@
     zone.innerHTML = '';
     const alt = S.alternative(p);
     zone.append(el('div', 'carte',
-      el('div', 'ligne haut', el('div', 'pousse', el('h2', {}, p.nom), el('p', 'sous', [p.marque, p.quantite].filter(Boolean).join(' · ')), p.categorie ? el('p', 'petit', p.categorie + ' · rayon ' + p.rayon) : null),
+      el('div', 'ligne haut', el('div', 'pousse', el('h2', {}, p.nom), el('p', 'sous', [p.marque, p.quantite].filter(Boolean).join(' · ')), el('p', 'petit', [p.categorie, 'rayon ' + p.rayon, p.base && p.base !== 'Open Food Facts' ? 'source : ' + p.base : null].filter(Boolean).join(' · '))),
         p.nutriscore ? el('div', 'centre', el('span', { class: 'badge nutri nutri-' + p.nutriscore, 'aria-label': 'Nutri-Score ' + p.nutriscore }, p.nutriscore), el('div', 'minuscule', 'Nutri-Score')) : el('span', 'badge', 'Nutri-Score inconnu')),
       alt ? el('div', { class: 'carte ambre', style: 'margin:12px 0 0' }, el('p', {}, alt)) : null,
       el('p', 'minuscule', '« À acheter » met le produit sur la liste de courses. « Je l’ai déjà » le range au garde-manger, ce qu’il y a à la maison.'),

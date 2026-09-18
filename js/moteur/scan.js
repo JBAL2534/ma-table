@@ -5,6 +5,13 @@
   const U = MaTable.util;
 
   const URL_OFF = 'https://world.openfoodfacts.org/api/v2/product/';
+  // Les bases sœurs d'Open Food Facts, interrogées dans cet ordre quand la première ne connaît pas le code.
+  const BASES = [
+    { nom: 'Open Food Facts', url: URL_OFF },
+    { nom: 'Open Beauty Facts', url: 'https://world.openbeautyfacts.org/api/v2/product/', rayon: 'Hygiène & maison' },
+    { nom: 'Open Products Facts', url: 'https://world.openproductsfacts.org/api/v2/product/', rayon: 'Hygiène & maison' },
+    { nom: 'Open Pet Food Facts', url: 'https://world.openpetfoodfacts.org/api/v2/product/' },
+  ];
   const CHAMPS = 'product_name,product_name_fr,brands,nutriscore_grade,categories,categories_tags,quantity,image_small_url';
 
   // Alternatives plus saines par famille de produits, proposées discrètement pour un Nutri-Score D ou E.
@@ -44,7 +51,7 @@
     return lisible.length ? lisible[lisible.length - 1] : (premiere[0] || null).replace(/^[a-z]{2}:/, '');
   }
 
-  function depuisOff(code, json) {
+  function depuisOff(code, json, base) {
     if (!json || !json.product || json.status === 0) return null;
     const p = json.product;
     const nom = p.product_name_fr || p.product_name || null;
@@ -53,7 +60,9 @@
     const produit = {
       code, nom, marque: p.brands || null, quantite: p.quantity || null,
       nutriscore: p.nutriscore_grade ? p.nutriscore_grade.toUpperCase() : null,
-      categorie, rayon: MaTable.Courses.devinerRayon(nom + ' ' + (categorie || '')), image: p.image_small_url || null,
+      // Un produit d'hygiène ou de maison va au rayon de sa base, même s'il sent l'amande ou la fraise.
+      categorie, rayon: (base && base.rayon) ? base.rayon : MaTable.Courses.devinerRayon(nom + ' ' + (categorie || '')), image: p.image_small_url || null,
+      base: (base && base.nom) || 'Open Food Facts',
       consulteLe: new Date().toISOString(),
     };
     if (produit.nutriscore && !/^[A-E]$/.test(produit.nutriscore)) produit.nutriscore = null;
@@ -67,16 +76,29 @@
     if (etat.produits[code]) return { produit: etat.produits[code], source: 'memoire' };
     const f = fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
     if (!f) throw new Error('Pas de connexion possible depuis cet appareil.');
-    let rep;
-    try { rep = await f(URL_OFF + code + '.json?fields=' + CHAMPS, { headers: { 'User-Agent': 'MaTable/1.0 (application familiale)' } }); }
-    catch (e) { throw new Error('Pas de connexion : le scan a besoin d’Internet pour reconnaître le produit.'); }
-    if (!rep.ok && rep.status !== 404) throw new Error('Open Food Facts ne répond pas pour le moment. Réessayez dans un instant.');
-    let json = null;
-    try { json = await rep.json(); } catch (e) { json = null; }
-    const produit = depuisOff(code, json);
-    if (!produit) return { produit: null, code, source: 'inconnu' };
+    let pannes = 0;
+    for (const base of BASES) {
+      let rep;
+      try { rep = await f(base.url + code + '.json?fields=' + CHAMPS, { headers: { 'User-Agent': 'MaTable/1.0 (application familiale)' } }); }
+      catch (e) { if (base === BASES[0]) throw new Error('Pas de connexion : le scan a besoin d’Internet pour reconnaître le produit.'); pannes++; continue; }
+      if (!rep.ok && rep.status !== 404) { pannes++; continue; }
+      let json = null;
+      try { json = await rep.json(); } catch (e) { json = null; }
+      const produit = depuisOff(code, json, base);
+      if (produit) { etat.produits[code] = produit; return { produit, source: 'off', base: base.nom }; }
+    }
+    if (pannes === BASES.length) throw new Error('Les bases de produits ne répondent pas pour le moment. Réessayez dans un instant.');
+    return { produit: null, code, source: 'inconnu' };
+  }
+  // Un code que personne ne connaît, mais que la famille a nommé : mémorisé pour les prochains scans, synchronisé comme le reste.
+  function memoriserProduit(etat, code, nom, options) {
+    code = String(code || '').replace(/\D/g, '');
+    nom = String(nom || '').trim();
+    if (!code || !nom) return null;
+    options = options || {};
+    const produit = { code, nom: U.majuscule(nom), marque: options.marque || null, quantite: options.quantite || null, nutriscore: null, categorie: null, rayon: options.rayon || MaTable.Courses.devinerRayon(nom), image: null, base: 'Notre famille', consulteLe: new Date().toISOString() };
     etat.produits[code] = produit;
-    return { produit, source: 'off' };
+    return produit;
   }
 
   // Un code EAN-13, EAN-8 ou UPC-A porte un chiffre de contrôle : une lecture de travers est presque toujours rejetée.
@@ -141,5 +163,5 @@
     return res.sort((a, b) => b.score - a.score).slice(0, options.nombre || 3);
   }
 
-  MaTable.Scan = { URL_OFF, codeValide, confirmateur, alternative, depuisOff, chercherProduit, ajouterGardeManger, joursAvantPeremption, ideesAvecGardeManger: idéesAvecGardeManger };
+  MaTable.Scan = { URL_OFF, BASES, codeValide, confirmateur, alternative, depuisOff, chercherProduit, memoriserProduit, ajouterGardeManger, joursAvantPeremption, ideesAvecGardeManger: idéesAvecGardeManger };
 })(typeof window !== 'undefined' ? window : globalThis);
