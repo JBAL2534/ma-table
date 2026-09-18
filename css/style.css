@@ -29,7 +29,7 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0; background: var(--creme); color: var(--texte); font-family: var(--police); line-height: 1.45;
+  margin: 0; overflow-x: hidden; background: var(--creme); color: var(--texte); font-family: var(--police); line-height: 1.45;
   min-height: 100vh; overscroll-behavior-y: none;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -54,7 +54,7 @@ p { margin: 0; }
 .entete-actions { display: flex; gap: 8px; }
 
 /* Cartes */
-.carte { background: var(--carte); border-radius: var(--rayon); box-shadow: var(--ombre); padding: 16px; margin-bottom: 14px; }
+.carte { background: var(--carte); border-radius: var(--rayon); box-shadow: var(--ombre); padding: 16px; margin-bottom: 14px; overflow-wrap: anywhere; min-width: 0; }
 .carte.douce { background: var(--sauge-clair); box-shadow: none; }
 .carte.chaude { background: var(--terracotta-clair); box-shadow: none; }
 .carte.ambre { background: var(--ambre-clair); box-shadow: none; color: var(--ambre-texte); }
@@ -94,7 +94,7 @@ p { margin: 0; }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn[aria-pressed="true"] { background: var(--sauge); color: #fff; }
 .boutons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-.boutons .btn { flex: 1; }
+.boutons .btn { flex: 1 1 auto; min-width: 0; }
 .boutons.colonne { flex-direction: column; }
 .boutons.colonne .btn { width: 100%; }
 

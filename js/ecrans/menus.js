@@ -151,7 +151,7 @@
       el('div', 'boutons',
         el('button', { class: 'btn chaud', onclick: () => app().aller('menus', { vue: 'batch', lundi }) }, '🍲 Batch du ' + U.nomJour(s.batch ? s.batch.date : U.ajouterJours(lundi, 6))),
         el('button', { class: 'btn principal', onclick: () => ajouterSemaineAuxCourses(lundi) }, '🧺 Tout aux courses')),
-      el('div', 'ligne entre', el('button', { class: 'btn discret petit-btn', onclick: () => proposer(lundi) }, '🎲 Proposer à nouveau'), el('button', { class: 'btn discret petit-btn', onclick: () => app().aller('historique', { onglet: 'tableau', lundi }) }, 'Tableau de bord ›'))));
+      el('div', { class: 'boutons', style: 'margin-top:6px' }, el('button', { class: 'btn discret petit-btn', onclick: () => proposer(lundi) }, '🎲 Proposer à nouveau'), el('button', { class: 'btn discret petit-btn', onclick: () => app().aller('historique', { onglet: 'tableau', lundi }) }, 'Tableau de bord ›'))));
     for (const j of U.joursSemaine(lundi)) conteneur.append(blocJour(s, j, auj));
   }
   function blocJour(s, j, auj) {

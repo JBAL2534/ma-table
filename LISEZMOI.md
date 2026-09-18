@@ -79,6 +79,7 @@ Un test vérifie qu'ils sont d'accord. À chaque publication : changer le numér
 | --- | --- |
 | 1.0.0 | Menus, batch cooking, courses multi-magasins, scanner, historique, profil, PWA iPhone |
 | 1.1.0 | Synchronisation entre appareils (gist GitHub), lecture caméra des codes-barres sur iPhone (ZXing), prix mémorisés depuis les tickets, magasins personnalisables, convives par repas, annulations (« Tout aux courses », scan), codes-barres confirmés |
+| 1.1.1 | Correction : la ligne « Proposer à nouveau / Tableau de bord » débordait de la carte sur iPhone |
 
 ## Publier
 
