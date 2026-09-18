@@ -1,6 +1,6 @@
 // Service worker : l'application s'ouvre même sans réseau (liste de courses comprise).
 // Les appels à Open Food Facts passent toujours par le réseau.
-const CACHE = 'ma-table-v6';
+const CACHE = 'ma-table-v7';
 const FICHIERS = [
   './', './index.html', './manifest.webmanifest', './css/style.css',
   './js/lib/zxing.min.js', './js/util.js', './js/donnees/recettes.js', './js/donnees/articles.js',
@@ -9,8 +9,12 @@ const FICHIERS = [
   './icones/icone-192.png', './icones/icone-512.png', './icones/icone-180.png',
 ];
 
+// À l'installation d'une version, chaque fichier est demandé au réseau en ignorant le cache HTTP :
+// une version est toujours cohérente, jamais un mélange d'ancien et de nouveau.
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FICHIERS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(FICHIERS.map(f =>
+    fetch(f, { cache: 'reload' }).then(r => { if (!r.ok) throw new Error(f); return c.put(f, r); })
+  ))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then(cles => Promise.all(cles.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -28,7 +32,7 @@ self.addEventListener('fetch', (e) => {
   // Fichiers de l'application : cache d'abord, puis mise à jour silencieuse.
   e.respondWith(caches.open(CACHE).then(async c => {
     const enCache = await c.match(e.request, { ignoreSearch: true });
-    const reseau = fetch(e.request).then(n => { if (n && n.ok) c.put(e.request, n.clone()); return n; }).catch(() => null);
+    const reseau = fetch(e.request, { cache: 'no-cache' }).then(n => { if (n && n.ok) c.put(e.request, n.clone()); return n; }).catch(() => null);
     if (enCache) { e.waitUntil(reseau); return enCache; }
     const n = await reseau;
     return n || c.match('./index.html');

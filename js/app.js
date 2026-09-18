@@ -82,7 +82,13 @@
       this.premierLancement();
       if (MaTable.Synchro) MaTable.Synchro.demarrer();
       if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-        navigator.serviceWorker.register('sw.js').catch(() => { /* hors ligne indisponible, l'application marche quand même */ });
+        // Quand une nouvelle version vient d'être installée, on recharge une fois : tous les fichiers
+        // viennent alors de la même version, dès la première ouverture.
+        const dejaControle = !!navigator.serviceWorker.controller;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (dejaControle && !racine.__MA_TABLE_RECHARGE) { racine.__MA_TABLE_RECHARGE = true; MaTable.ui.toast('Nouvelle version de Ma Table…', 1200); setTimeout(() => location.reload(), 600); }
+        });
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => { /* hors ligne indisponible, l'application marche quand même */ });
       }
     },
   };
