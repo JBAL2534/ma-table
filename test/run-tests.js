@@ -587,6 +587,22 @@ test('magasins personnalisables : ajouter, renommer, ordonner, retirer, rétabli
   const vieux = T.Stockage.etatDefaut(); delete vieux.magasins; T.Stockage.completer(vieux); assert.strictEqual(vieux.magasins.length, 4);
 });
 
+test('« Tout aux courses » deux fois ne double rien, et se retire en bloc', () => {
+  const etat = etatNeuf(); const C = T.Courses;
+  const ings = [{ nom: 'Carottes', qte: 4, unite: 'pièces' }, { nom: 'Lait', qte: 1, unite: 'l' }];
+  C.ajouterIngredients(etat.liste, ings, {}, [], 'semaine 2026-09-14');
+  C.ajouterIngredients(etat.liste, ings, {}, [], 'semaine 2026-09-14');
+  assert.strictEqual(etat.liste.find(a => a.nom === 'Carottes').qte, 4, 'pas de doublement');
+  C.ajouterIngredients(etat.liste, [{ nom: 'Carottes', qte: 2, unite: 'pièces' }], {}, [], 'Soupe');
+  assert.strictEqual(etat.liste.find(a => a.nom === 'Carottes').qte, 6, 'une autre provenance s’ajoute');
+  C.ajouter(etat.liste, { nom: 'Café', source: 'manuel' });
+  const menus = C.venusDesMenus(etat.liste);
+  assert.deepStrictEqual(menus.map(a => a.nom), ['Lait'], 'seuls les articles venus uniquement des menus');
+  C.retirerPlusieurs(etat, menus);
+  assert.deepStrictEqual(etat.liste.map(a => a.nom).sort(), ['Café', 'Carottes']);
+  assert.strictEqual(etat.listeArchivee[0].statut, 'retire');
+});
+
 (async () => {
   for (const t of tests) {
     try { await t.f(); reussis++; console.log('  ✓ ' + t.nom); }

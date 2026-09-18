@@ -75,6 +75,13 @@
       return el('button', { class: 'puce', role: 'tab', 'aria-selected': String(m.id === actif), 'aria-pressed': String(m.id === actif), onclick: () => app().parametrer({ magasin: m.id }) }, m.emoji + ' ' + m.nom, el('span', 'compte', arts.length ? restants + '/' + arts.length : ''));
     })));
     const arts = parMag[actif] || [];
+    const desMenus = C.venusDesMenus(etat.liste);
+    conteneur.append(el('div', 'ligne entre', el('span', 'petit', U.pluriel(etat.liste.filter(a => !a.coche).length, 'article à acheter', 'articles à acheter')),
+      el('button', { class: 'btn petit-btn', 'aria-label': 'Actions sur la liste', onclick: () => menuActions('La liste', [
+        desMenus.length && { ico: '↩️', libelle: 'Retirer les articles venus des menus (' + desMenus.length + ')', detail: '', action: async () => { if (await confirmer('Les ' + desMenus.length + ' articles ajoutés par « Tout aux courses » ou le batch quittent la liste. Ce que vous avez ajouté à la main reste.', { ok: 'Retirer' })) { C.retirerPlusieurs(etat, desMenus); sauver(); toast('Articles retirés.'); } } },
+        arts.some(a => !a.coche) && { ico: '🧹', libelle: 'Vider ' + C.nomMagasin(actif) + ' (' + arts.filter(a => !a.coche).length + ')', danger: true, action: async () => { if (await confirmer('Tous les articles non cochés de ' + C.nomMagasin(actif) + ' quittent la liste.', { ok: 'Vider', danger: true })) { C.retirerPlusieurs(etat, arts.filter(a => !a.coche)); sauver(); } } },
+        etat.liste.some(a => a.coche) && { ico: '☐', libelle: 'Tout décocher', action: () => { for (const a of etat.liste) if (a.coche) C.cocher(a, false); sauver(); } },
+      ]) }, '⋯')));
     const carte = el('div', 'carte');
     if (!arts.length) carte.append(el('p', 'sous centre', 'Rien à acheter ' + (actif === 'marche' ? 'au' : 'chez') + ' ' + C.nomMagasin(actif) + ' pour le moment.'));
     for (const g of C.parRayon(arts)) {

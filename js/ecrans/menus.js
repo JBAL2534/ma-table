@@ -45,9 +45,12 @@
     const s = etat.semaines[lundi];
     if (!s) return;
     const ings = M.ingredientsSemaine(etat, s);
+    const avant = new Set(etat.liste.map(a => a.id));
     const r = C.ajouterIngredients(etat.liste, ings, ctxCourses(), etat.gardeManger, 'semaine ' + lundi);
     sauver();
-    toast(U.pluriel(r.ajoutes.length, 'article ajouté', 'articles ajoutés') + (r.dejaLa.length ? ' · ' + U.pluriel(r.dejaLa.length, 'déjà à la maison', 'déjà à la maison') : ''));
+    const nouveaux = etat.liste.filter(a => !avant.has(a.id));
+    toast(U.pluriel(r.ajoutes.length, 'article ajouté', 'articles ajoutés') + (r.dejaLa.length ? ' · ' + r.dejaLa.length + ' déjà à la maison' : ''), 8000,
+      nouveaux.length ? { libelle: 'Annuler', action: () => { C.retirerPlusieurs(etat, nouveaux); sauver(); toast('Ajout annulé.'); } } : null);
   }
   function ajouterRecetteAuxCourses(recette, portions) {
     const etat = E();

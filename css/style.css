@@ -261,6 +261,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--sauge); box-shad
 .menu-actions button .ico { width: 34px; text-align: center; font-size: 1.25rem; }
 .menu-actions button.danger { color: var(--rouge); }
 .toast { position: fixed; left: 50%; bottom: calc(var(--nav-hauteur) + 20px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--texte); color: var(--creme); padding: 12px 18px; border-radius: 999px; font-weight: 700; z-index: 90; box-shadow: var(--ombre-haute); max-width: calc(100% - 32px); text-align: center; animation: monter .2s ease-out; }
+.toast .toast-action { margin-left: 12px; background: var(--ambre); color: #3a2f10; border: 0; border-radius: 999px; padding: 6px 12px; font-weight: 800; min-height: 32px; }
 .erreur { background: var(--rouge-clair); color: var(--rouge); padding: 12px 14px; border-radius: 14px; font-weight: 700; }
 
 /* Scanner */

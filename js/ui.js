@@ -79,12 +79,14 @@
   }
 
   let toastCourant = null;
-  function toast(message, duree) {
+  // Message bref. Avec `action` ({ libelle, action }), le message propose un bouton, par exemple « Annuler ».
+  function toast(message, duree, action) {
     if (toastCourant) toastCourant.remove();
-    const t = el('div', { class: 'toast', role: 'status' }, message);
+    const t = el('div', { class: 'toast', role: 'status' }, message,
+      action ? el('button', { class: 'toast-action', onclick: () => { t.remove(); action.action(); } }, action.libelle) : null);
     document.body.append(t);
     toastCourant = t;
-    setTimeout(() => { if (t.parentNode) t.remove(); if (toastCourant === t) toastCourant = null; }, duree || 2600);
+    setTimeout(() => { if (t.parentNode) t.remove(); if (toastCourant === t) toastCourant = null; }, duree || (action ? 8000 : 2600));
   }
 
   function confirmer(message, options) {

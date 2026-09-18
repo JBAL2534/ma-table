@@ -122,9 +122,11 @@
     const unite = (article.unite || '').trim();
     const existant = liste.find(a => !a.coche && U.racineMot(a.nom) === cle && (a.unite || '') === unite);
     if (existant) {
-      if (article.qte != null && article.qte !== '') existant.qte = (Number(existant.qte) || 0) + Number(article.qte);
-      if (article.source && !existant.sources.includes(article.source)) existant.sources.push(article.source);
-      toucher(existant);
+      // La même provenance (« semaine du… », « batch du… ») ne compte qu'une fois : appuyer deux fois ne double rien.
+      const dejaCompte = article.source && existant.sources.includes(article.source);
+      if (!dejaCompte && article.qte != null && article.qte !== '') existant.qte = (Number(existant.qte) || 0) + Number(article.qte);
+      if (article.source && !dejaCompte) existant.sources.push(article.source);
+      if (!dejaCompte) toucher(existant);
       return existant;
     }
     const aff = affecter(nom, ctx);
@@ -160,6 +162,8 @@
     return article;
   }
   function retirer(etat, article) { return archiver(etat, article, 'retire'); }
+  function venusDesMenus(liste) { return liste.filter(a => !a.coche && a.sources.length && a.sources.every(s => /^(semaine|batch) /.test(s))); }
+  function retirerPlusieurs(etat, articles) { for (const a of articles.slice()) retirer(etat, a); return articles.length; }
 
   function estAuGardeManger(nom, gardeManger) {
     const cle = U.racineMot(nom);
@@ -334,7 +338,7 @@
 
   MaTable.Courses = {
     MAGASINS_DEPART, EMOJIS_MAGASIN, RAYONS, definirMagasins, magasins, ajouterMagasin, modifierMagasin, retirerMagasin, retablirMagasin, deplacerMagasin, affecter, devinerRayon, trouverCatalogue, ajouter, ajouterIngredients, estAuGardeManger, trierRayons, parMagasin, parRayon,
-    changerMagasin, changerRayon, cocher, toucher, archiver, retirer, terminerMagasin, essentiels, basculerEssentiel, suggestions, autocompleter, nomsConnus, texteDrive,
+    changerMagasin, changerRayon, cocher, toucher, archiver, retirer, venusDesMenus, retirerPlusieurs, terminerMagasin, essentiels, basculerEssentiel, suggestions, autocompleter, nomsConnus, texteDrive,
     lienRecherche, nomMagasin, emojiMagasin, analyserSaisie, UNITES,
   };
   // Compatibilité : Courses.MAGASINS renvoie toujours la liste courante des magasins visibles.

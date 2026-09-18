@@ -257,7 +257,9 @@
     const nomFichier = () => 'ma-table-' + U.aujourdhui() + '.json';
     return el('div', 'carte', el('h2', {}, '💾 Vos données'),
       el('p', 'petit', 'Tout est enregistré sur ce téléphone : ' + U.pluriel(Object.keys(etat.semaines).length, 'semaine') + ', ' + U.pluriel(etat.achats.length, 'passage en magasin', 'passages en magasin') + ', ' + U.pluriel(etat.recettes.length, 'recette à vous', 'recettes à vous') + ', ' + U.pluriel(etat.avis.length, 'avis') + '.'),
-      el('p', 'petit', 'Pour partager avec l’autre parent : exportez d’un téléphone, envoyez le fichier (AirDrop, Messages…), importez sur l’autre. La liste cochée par l’un apparaît alors chez l’autre, avec le nom de qui a coché.'),
+      el('p', 'petit', MaTable.Synchro.actif(etat)
+        ? 'La synchronisation (carte au-dessus) tient vos appareils à jour en continu. Ici, c’est la sauvegarde : un fichier à garder de côté, ou à importer sur un appareil qui repart de zéro.'
+        : 'Sans synchronisation, c’est ici qu’on partage : exportez d’un appareil, envoyez le fichier (AirDrop, Messages…), importez sur l’autre en choisissant « Fusionner ». C’est aussi votre sauvegarde.'),
       el('div', 'boutons',
         el('button', { class: 'btn principal', onclick: () => telecharger(nomFichier(), St.exporter(), 'application/json') }, '⬇️ Exporter'),
         el('button', { class: 'btn', onclick: async () => { const contenu = St.exporter(); let f = null; try { f = new File([contenu], nomFichier(), { type: 'application/json' }); } catch (e) { f = null; } const ok = await partager('Ma Table — données', f ? undefined : contenu, f); if (!ok) telecharger(nomFichier(), contenu, 'application/json'); } }, '📤 Partager'),

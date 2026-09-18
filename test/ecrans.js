@@ -169,6 +169,15 @@ test('le parcours du premier jour tient de bout en bout', async () => {
   // 3. Tout aux courses
   cliquer(boutons(w).find(b => /Tout aux courses/.test(texte(b))));
   assert.ok(etat.liste.length > 20, 'la liste est remplie (' + etat.liste.length + ')');
+  // 3 bis. Le message propose d'annuler ; on annule puis on recommence.
+  const annuler = w.document.querySelector('.toast .toast-action');
+  assert.ok(annuler && /Annuler/.test(texte(annuler)), 'le message propose « Annuler »');
+  cliquer(annuler);
+  assert.strictEqual(etat.liste.length, 0, 'tout est retiré');
+  cliquer(boutons(w).find(b => /Tout aux courses/.test(texte(b))));
+  cliquer(boutons(w).find(b => /Tout aux courses/.test(texte(b))));
+  const carottes = etat.liste.find(a => /carotte/i.test(a.nom));
+  assert.ok(etat.liste.length > 20 && (!carottes || carottes.sources.length === 1), 'appuyer deux fois ne double pas');
   // 4. Batch du dimanche
   cliquer(boutons(w).find(b => /Batch du/.test(texte(b))));
   assert.ok(/Dans l.ordre/.test(texte(contenu(w))) && w.document.querySelectorAll('.etiquette').length >= 5, 'le plan de batch et les étiquettes');
