@@ -81,7 +81,7 @@
         el('div', 'titre', (rep.type === 'rechauffer' ? 'Réchauffer : ' : '') + rep.titre),
         rep.sousTitre ? el('div', 'sous-titre', rep.sousTitre) : null,
         badges(rep.badges, 3)),
-      el('span', 'temps', rep.minutes ? rep.minutes + ' min' : ''));
+      el('span', 'temps', (rep.portions && rep.portions !== 3 && rep.type !== 'lunchbox' ? '👥 ' + rep.portions + ' · ' : '') + (rep.minutes ? rep.minutes + ' min' : '')));
     return b;
   }
 
@@ -95,8 +95,14 @@
       rep && rep.recetteId && { ico: '📖', libelle: 'Voir la recette', action: () => app().aller('menus', { vue: 'recette', id: rep.recetteId, lundi, retour: date + '|' + creneau }) },
       { ico: '🎲', libelle: rep ? 'Autre idée' : 'Une idée pour ce repas', action: () => { const n = M.autreIdee(etat, s, date, creneau, Date.now() % 1000000); if (n) { sauver(); vibrer(); toast(n.emoji + ' ' + n.titre); } else toast('Pas d’autre idée disponible pour ce créneau.'); } },
       { ico: '🔎', libelle: 'Choisir une recette…', action: () => app().aller('menus', { vue: 'catalogue', lundi, pour: date + '|' + creneau }) },
+      rep && rep.recetteId && rep.type !== 'lunchbox' && { ico: '👥', libelle: 'Nombre de convives', detail: (rep.portions || 3) + ' pers.', action: async () => {
+        const v = await demander('Combien de personnes à table ?', { valeur: String(rep.portions || 3), type: 'number', inputmode: 'numeric', aide: 'Les quantités de la recette et de la liste de courses suivent. 3 par défaut.' });
+        if (v === null) return; const n = Number(v);
+        if (!n || n < 1) { toast('Indiquez un nombre de personnes.'); return; }
+        M.definirPortions(s, date, creneau, n); sauver(); toast(rep.titre + ' pour ' + n + ' personnes.');
+      } },
       rep && { ico: '↔️', libelle: 'Déplacer vers un autre jour', action: () => choisirJour(s, date, creneau) },
-      rep && rep.recetteId && { ico: '🧺', libelle: 'Ajouter les ingrédients aux courses', action: () => { const r = M.recetteParId(etat, rep.recetteId); if (r) ajouterRecetteAuxCourses(r, rep.type === 'lunchbox' ? 2 : 3); } },
+      rep && rep.recetteId && { ico: '🧺', libelle: 'Ajouter les ingrédients aux courses', action: () => { const r = M.recetteParId(etat, rep.recetteId); if (r) ajouterRecetteAuxCourses(r, rep.type === 'lunchbox' ? 2 : (rep.portions || 3)); } },
       rep && rep.recetteId && passe && { ico: '⭐', libelle: 'Noter ce repas', action: () => MaTable.ecrans.historique.noter(date, creneau) },
       rep && { ico: '🗑️', libelle: 'Retirer de la semaine', danger: true, action: () => { s.repas[date][creneau] = null; if (s.batch) { for (const p of s.batch.preparations) p.jours = p.jours.filter(j => j !== date); s.batch.preparations = s.batch.preparations.filter(p => p.jours.length); M.planBatch(s); } M.toucherSemaine(s); sauver(); } },
     ]);
@@ -163,7 +169,9 @@
     const lundi = params.lundi || U.lundiDe(U.aujourdhui());
     const retour = () => app().aller(params.origine === 'garde' ? 'courses' : 'menus', params.origine === 'garde' ? { onglet: 'garde' } : { lundi, vue: params.depuis === 'catalogue' ? 'catalogue' : undefined });
     if (!r) { conteneur.append(el('div', 'carte', el('p', {}, 'Cette recette n’existe plus.'), el('button', { class: 'btn', onclick: retour }, 'Retour'))); return; }
-    const portions = Number(params.portions) || r.portions || 3;
+    let portions = Number(params.portions) || 0;
+    if (!portions && params.retour) { const [d, c] = params.retour.split('|'); const sem = etat.semaines[U.lundiDe(d)]; const rep = sem && sem.repas[d] && sem.repas[d][c]; portions = (rep && rep.portions) || 0; }
+    portions = portions || r.portions || 3;
     conteneur.append(el('div', 'entete', el('button', { class: 'btn', onclick: retour }, '‹ Retour'),
       el('div', 'entete-actions', el('button', { class: 'btn petit-btn', onclick: () => menuRecette(r, lundi) }, '⋯'))));
     conteneur.append(el('div', 'recette-entete',

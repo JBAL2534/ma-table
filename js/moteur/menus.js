@@ -342,6 +342,15 @@
     return s.repas[date][creneau];
   }
 
+  // Nombre de convives d'un repas (3 par défaut) : les quantités de la liste suivent.
+  function definirPortions(s, date, creneau, portions) {
+    const rep = s.repas[date] && s.repas[date][creneau];
+    if (!rep) return null;
+    rep.portions = Math.max(1, Math.min(30, Math.round(Number(portions) || 3)));
+    toucherSemaine(s);
+    return rep;
+  }
+
   // Échange deux repas du même créneau entre deux jours.
   function deplacerRepas(s, dateA, creneau, dateB) {
     const a = s.repas[dateA][creneau], b = s.repas[dateB][creneau];
@@ -390,13 +399,13 @@
       if (!rep || !rep.recetteId) continue;
       if ((rep.type === 'lunchbox' || rep.type === 'rechauffer') && dejaBatch.has(rep.recetteId)) continue;
       const r = recetteParId(etat, rep.recetteId);
-      if (r) tout.push(...ingredientsRecette(r, 3));
+      if (r) tout.push(...ingredientsRecette(r, rep.portions || 3));
     }
     return cumuler(tout);
   }
 
   MaTable.Menus = {
     CRENEAUX, NOMS_CRENEAU, CUISSONS, BADGES, toutesRecettes, recetteParId, enregistrerRecette, semaineVide, semaine, poids, avisPour,
-    genererSemaine, planBatch, autreIdee, toucherSemaine, placerRecette, deplacerRepas, ingredientsRecette, ingredientsSemaine, cumuler, arrondir, repartirLunchBoxes, nomEnfant,
+    genererSemaine, planBatch, autreIdee, toucherSemaine, definirPortions, placerRecette, deplacerRepas, ingredientsRecette, ingredientsSemaine, cumuler, arrondir, repartirLunchBoxes, nomEnfant,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

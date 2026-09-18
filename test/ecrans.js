@@ -166,6 +166,16 @@ test('le parcours du premier jour tient de bout en bout', async () => {
   cliquer(boutons(w, dialogues(w)[0]).find(b => /Autre idée/.test(texte(b))));
   await attendre(5);
   assert.notStrictEqual(texte(w.document.querySelector('.jour .repas:not(.vide):nth-of-type(3)')), avant, 'le repas a changé');
+  // 2 bis. Convives : le samedi soir pour 6.
+  const cartesSamedi = [...w.document.querySelectorAll('.jour')][5].querySelectorAll('.repas:not(.vide)');
+  cliquer(cartesSamedi[2]);
+  cliquer(boutons(w, dialogues(w)[0]).find(b => /Nombre de convives/.test(texte(b))));
+  let dp = dialogues(w)[0]; dp.querySelector('input').value = '6';
+  cliquer(boutons(w, dp).find(b => /Valider/.test(texte(b))));
+  await attendre(5);
+  const samedi = Object.keys(etat.semaines[lundi].repas).sort()[5];
+  assert.strictEqual(etat.semaines[lundi].repas[samedi].soir.portions, 6, 'convives enregistrés');
+  assert.ok(texte(contenu(w)).includes('👥 6'), 'affiché sur la carte');
   // 3. Tout aux courses
   cliquer(boutons(w).find(b => /Tout aux courses/.test(texte(b))));
   assert.ok(etat.liste.length > 20, 'la liste est remplie (' + etat.liste.length + ')');
@@ -218,8 +228,14 @@ test('le parcours du premier jour tient de bout en bout', async () => {
   await attendre(20);
   assert.ok(texte(contenu(w)).includes('Biscuits test') && w.document.querySelector('.nutri-D'), 'fiche produit avec Nutri-Score');
   assert.ok(/Plus léger/.test(texte(contenu(w))), 'alternative proposée pour un D');
-  cliquer(boutons(w).find(b => /À la liste/.test(texte(b))));
+  cliquer(boutons(w).find(b => /À acheter/.test(texte(b))));
   assert.ok(etat.liste.some(a => a.nom === 'Biscuits test'), 'le produit scanné est sur la liste');
+  const annulerScan = w.document.querySelector('.toast .toast-action');
+  assert.ok(annulerScan, 'annulation proposée après le scan');
+  cliquer(annulerScan);
+  assert.ok(!etat.liste.some(a => a.nom === 'Biscuits test'), 'le scan est annulé');
+  cliquer(boutons(w).find(b => /À acheter/.test(texte(b))));
+  assert.ok(etat.liste.some(a => a.nom === 'Biscuits test'), 'puis remis');
   // 8. Garde-manger : que cuisiner ce soir
   aller(w, 'courses', { onglet: 'garde' });
   cliquer(boutons(w).find(b => /Que cuisiner ce soir/.test(texte(b))));
@@ -322,7 +338,7 @@ test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', 
   Object.defineProperty(w.navigator, 'mediaDevices', { value: { getUserMedia: async () => ({ getTracks: () => [] }) }, configurable: true });
   let appels = 0, reinitialise = 0;
   const vrai = w.ZXing.BrowserMultiFormatReader;
-  w.ZXing.BrowserMultiFormatReader = class { constructor(indices) { assert.ok(indices.get(w.ZXing.DecodeHintType.POSSIBLE_FORMATS).includes(w.ZXing.BarcodeFormat.EAN_13)); } async decodeFromConstraints(c, video, cb) { appels++; assert.ok(c.video, 'contraintes caméra'); cb({ getText: () => '3017620422003' }); } reset() { reinitialise++; } };
+  w.ZXing.BrowserMultiFormatReader = class { constructor(indices) { assert.ok(indices.get(w.ZXing.DecodeHintType.POSSIBLE_FORMATS).includes(w.ZXing.BarcodeFormat.EAN_13)); } async decodeFromConstraints(c, video, cb) { appels++; assert.ok(c.video, 'contraintes caméra'); cb({ getText: () => '3017620422008' }); cb({ getText: () => '3017620422003' }); cb({ getText: () => '3017620422003' }); } reset() { reinitialise++; } };
   w.fetch = async () => ({ ok: true, status: 200, json: async () => ({ status: 1, product: { product_name_fr: 'Produit ZXing', nutriscore_grade: 'b', categories: 'Test' } }) });
   aller(w, 'scanner', {});
   await attendre(30);

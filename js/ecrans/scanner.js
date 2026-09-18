@@ -56,20 +56,25 @@
     let detecteur;
     try { detecteur = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] }); }
     catch (e) { indication.textContent = 'Lecture impossible ici : tapez le code ci-dessous.'; return; }
-    let dernier = '';
+    const confirmer = S.confirmateur(2500);
     const tour = async () => {
       if (!flux) return;
       try {
         const codes = await detecteur.detect(video);
-        if (codes.length && codes[0].rawValue && codes[0].rawValue !== dernier) {
-          dernier = codes[0].rawValue; vibrer(20);
-          indication.textContent = 'Code lu : ' + dernier;
-          auCode(dernier);
-          boucle = setTimeout(() => { dernier = ''; tour(); }, 4000);
-          return;
+        const brut = codes.length && codes[0].rawValue;
+        if (brut) {
+          const code = confirmer(brut);
+          if (code) {
+            vibrer(20);
+            indication.textContent = 'Code lu : ' + code;
+            auCode(code);
+            boucle = setTimeout(tour, 4000);
+            return;
+          }
+          indication.textContent = 'Encore un instant…';
         }
       } catch (e) { /* image pas prête */ }
-      boucle = setTimeout(tour, 250);
+      boucle = setTimeout(tour, 200);
     };
     tour();
   }
@@ -77,7 +82,8 @@
   // Lecture par ZXing : la caméra est gérée par la bibliothèque, qui analyse les images en continu.
   async function demarrerZXing(video, indication, auCode) {
     const Z = window.ZXing;
-    let dernier = '', pause = false;
+    let pause = false;
+    const confirmer = S.confirmateur(2500);
     try {
       const indices = new Map();
       indices.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128]);
@@ -85,12 +91,14 @@
       lecteurZXing = new Z.BrowserMultiFormatReader(indices, 250);
       await lecteurZXing.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }, video, (resultat) => {
         if (!resultat || pause) return;
-        const code = resultat.getText();
-        if (!code || code === dernier) return;
-        dernier = code; pause = true; vibrer(20);
+        const brut = resultat.getText();
+        if (!brut) return;
+        const code = confirmer(brut);
+        if (!code) { indication.textContent = 'Encore un instant…'; return; }
+        pause = true; vibrer(20);
         indication.textContent = 'Code lu : ' + code;
         auCode(code);
-        boucle = setTimeout(() => { pause = false; dernier = ''; indication.textContent = 'Placez le code-barres dans le cadre'; }, 4000);
+        boucle = setTimeout(() => { pause = false; indication.textContent = 'Placez le code-barres dans le cadre'; }, 4000);
       });
     } catch (e) {
       indication.textContent = 'Caméra indisponible : autorisez-la dans les réglages, ou tapez le code ci-dessous.';
@@ -108,7 +116,7 @@
       if (!r.produit) {
         zone.innerHTML = '';
         zone.append(el('div', 'carte', el('h3', {}, 'Produit inconnu'), el('p', 'sous', 'Open Food Facts ne connaît pas encore ce code (' + String(code).replace(/\D/g, '') + '). Vous pouvez l’ajouter sous un nom à vous.'),
-          el('div', 'boutons', el('button', { class: 'btn principal', onclick: async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8' }); if (n && n.trim()) MaTable.ecrans.courses.ajouterArticle(n.trim()); } }, '＋ À la liste'), el('button', { class: 'btn', onclick: async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8' }); if (n && n.trim()) { S.ajouterGardeManger(etat, { nom: n }); sauver(); toast('Ajouté au garde-manger.'); } } }, '🥫 Au garde-manger'))));
+          el('div', 'boutons', el('button', { class: 'btn principal', onclick: async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8' }); if (n && n.trim()) MaTable.ecrans.courses.ajouterArticle(n.trim()); } }, '🧺 À acheter'), el('button', { class: 'btn', onclick: async () => { const n = await demander('Nom du produit', { placeholder: 'Ex. : Yaourts nature x8' }); if (n && n.trim()) { S.ajouterGardeManger(etat, { nom: n }); sauver(); toast('Ajouté au garde-manger.'); } } }, '🥫 Je l’ai déjà'))));
         return;
       }
       afficher(r.produit, zone);
@@ -126,9 +134,20 @@
       el('div', 'ligne haut', el('div', 'pousse', el('h2', {}, p.nom), el('p', 'sous', [p.marque, p.quantite].filter(Boolean).join(' · ')), p.categorie ? el('p', 'petit', p.categorie + ' · rayon ' + p.rayon) : null),
         p.nutriscore ? el('div', 'centre', el('span', { class: 'badge nutri nutri-' + p.nutriscore, 'aria-label': 'Nutri-Score ' + p.nutriscore }, p.nutriscore), el('div', 'minuscule', 'Nutri-Score')) : el('span', 'badge', 'Nutri-Score inconnu')),
       alt ? el('div', { class: 'carte ambre', style: 'margin:12px 0 0' }, el('p', {}, alt)) : null,
+      el('p', 'minuscule', '« À acheter » met le produit sur la liste de courses. « Je l’ai déjà » le range au garde-manger, ce qu’il y a à la maison.'),
       el('div', 'boutons',
-        el('button', { class: 'btn principal', onclick: () => { const a = C.ajouter(etat.liste, { nom: p.nom, rayon: p.rayon, source: 'scan', par: utilisateur(etat) }, { preferencesMagasin: etat.preferencesMagasin, magasins: etat.reglages.magasins }); sauverDoucement(); vibrer(); toast(p.nom + ' → ' + C.nomMagasin(a.magasin)); } }, '🧺 À la liste'),
-        el('button', { class: 'btn', onclick: () => { S.ajouterGardeManger(etat, { nom: p.nom, qte: p.quantite, rayon: p.rayon }); sauverDoucement(); toast('Ajouté au garde-manger.'); } }, '🥫 Au garde-manger'))));
+        el('button', { class: 'btn principal', onclick: () => {
+          const avant = new Set(etat.liste.map(x => x.id));
+          const a = C.ajouter(etat.liste, { nom: p.nom, rayon: p.rayon, source: 'scan', par: utilisateur(etat) }, { preferencesMagasin: etat.preferencesMagasin, magasins: etat.reglages.magasins });
+          sauverDoucement(); vibrer();
+          toast(p.nom + ' → liste de courses, ' + C.nomMagasin(a.magasin), 8000, { libelle: 'Annuler', action: () => { if (!avant.has(a.id)) C.retirer(etat, a); else { a.sources = a.sources.filter(x => x !== 'scan'); } sauverDoucement(); toast('Annulé.'); } });
+        } }, '🧺 À acheter'),
+        el('button', { class: 'btn', onclick: () => {
+          const existait = etat.gardeManger.find(g => U.racineMot(g.nom) === U.racineMot(p.nom));
+          const copie = existait ? JSON.parse(JSON.stringify(existait)) : null;
+          const g = S.ajouterGardeManger(etat, { nom: p.nom, qte: p.quantite, rayon: p.rayon }); sauverDoucement();
+          toast(p.nom + ' → garde-manger', 8000, { libelle: 'Annuler', action: () => { if (copie) Object.assign(g, copie); else { g.retire = true; C.toucher(g); } sauverDoucement(); toast('Annulé.'); } });
+        } }, '🥫 Je l’ai déjà'))));
   }
 
   // ---- Photo analysée par l'IA (seulement si une clé est enregistrée) -------------

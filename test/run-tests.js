@@ -603,6 +603,36 @@ test('« Tout aux courses » deux fois ne double rien, et se retire en bloc', ()
   assert.strictEqual(etat.listeArchivee[0].statut, 'retire');
 });
 
+test('codes-barres : chiffre de contrôle et confirmation par double lecture', () => {
+  const S = T.Scan;
+  assert.strictEqual(S.codeValide('3017620422003'), true, 'EAN-13 valide');
+  assert.strictEqual(S.codeValide('3017620422008'), false, 'un chiffre faux est rejeté');
+  assert.strictEqual(S.codeValide('96385074'), true, 'EAN-8 valide');
+  assert.strictEqual(S.codeValide('036000291452'), true, 'UPC-A valide');
+  assert.strictEqual(S.codeValide('123'), false);
+  const c = S.confirmateur(2000);
+  assert.strictEqual(c('3017620422003', 1000), null, 'première lecture : on attend');
+  assert.strictEqual(c('3017620422008', 1200), null, 'lecture invalide ignorée');
+  assert.strictEqual(c('3017620422003', 1500), '3017620422003', 'deuxième lecture identique : confirmé');
+  assert.strictEqual(c('96385074', 5000), null);
+  assert.strictEqual(c('96385074', 9000), null, 'trop tard : on repart');
+  assert.strictEqual(c('96385074', 9500), '96385074');
+});
+test('convives : les quantités d\u2019un repas suivent le nombre de personnes', () => {
+  const etat = etatNeuf();
+  const s = T.Menus.genererSemaine(etat, '2026-09-21', 7);
+  const avant = T.Menus.ingredientsSemaine(etat, s);
+  const rep = s.repas['2026-09-26'].soir; const r = T.Menus.recetteParId(etat, rep.recetteId);
+  T.Menus.definirPortions(s, '2026-09-26', 'soir', 6);
+  assert.strictEqual(rep.portions, 6);
+  const apres = T.Menus.ingredientsSemaine(etat, s);
+  const ing = r.ingredients[0]; const cle = x => U.racineMot(x.nom) + '|' + (x.unite || '');
+  const a = avant.find(x => cle(x) === cle(ing)), b = apres.find(x => cle(x) === cle(ing));
+  assert.ok(b.qte > a.qte, 'la quantité a augmenté pour 6 personnes');
+  assert.strictEqual(T.Menus.definirPortions(s, '2026-09-26', 'soir', 0).portions, 3, 'valeur absurde ramenée à 3');
+  assert.ok(s.modifieLe, 'la semaine est datée pour la synchronisation');
+});
+
 (async () => {
   for (const t of tests) {
     try { await t.f(); reussis++; console.log('  ✓ ' + t.nom); }

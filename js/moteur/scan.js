@@ -79,6 +79,28 @@
     return { produit, source: 'off' };
   }
 
+  // Un code EAN-13, EAN-8 ou UPC-A porte un chiffre de contrôle : une lecture de travers est presque toujours rejetée.
+  function codeValide(code) {
+    code = String(code || '').replace(/\D/g, '');
+    if (![8, 12, 13].includes(code.length)) return code.length >= 8 && code.length <= 14;
+    const chiffres = code.split('').map(Number);
+    const controle = chiffres.pop();
+    let somme = 0;
+    chiffres.reverse().forEach((c, i) => { somme += c * (i % 2 === 0 ? 3 : 1); });
+    return (10 - (somme % 10)) % 10 === controle;
+  }
+  // Ne retient un code qu'après deux lectures identiques rapprochées : les faux positifs s'éliminent.
+  function confirmateur(delai) {
+    let dernier = null, quand = 0;
+    return function (code, maintenant) {
+      maintenant = maintenant || Date.now();
+      if (!codeValide(code)) return null;
+      if (code === dernier && maintenant - quand <= (delai || 2000)) { dernier = null; return code; }
+      dernier = code; quand = maintenant;
+      return null;
+    };
+  }
+
   // Garde-manger
   function ajouterGardeManger(etat, { nom, qte, rayon, peremption }) {
     nom = String(nom || '').trim();
@@ -119,5 +141,5 @@
     return res.sort((a, b) => b.score - a.score).slice(0, options.nombre || 3);
   }
 
-  MaTable.Scan = { URL_OFF, alternative, depuisOff, chercherProduit, ajouterGardeManger, joursAvantPeremption, ideesAvecGardeManger: idéesAvecGardeManger };
+  MaTable.Scan = { URL_OFF, codeValide, confirmateur, alternative, depuisOff, chercherProduit, ajouterGardeManger, joursAvantPeremption, ideesAvecGardeManger: idéesAvecGardeManger };
 })(typeof window !== 'undefined' ? window : globalThis);
