@@ -27,18 +27,27 @@
     if (cameraPossible()) {
       const video = el('video', { playsinline: true, muted: true, autoplay: true });
       const indication = el('div', 'indication', 'Placez le code-barres dans le cadre');
-      // Relancer : la caméra est demandée dans le geste du doigt lui-même (exigence d'iOS), puis confiée au lecteur.
-      const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => {
-        relancer.hidden = true; indication.textContent = 'Redémarrage de la caméra…';
+      // En pause depuis Ma Table (pas depuis iOS) : la caméra se rallume d'un tap, dans le geste.
+      let enPause = false;
+      const pause = el('button', { class: 'btn icone pause', 'aria-label': 'Éteindre la caméra', onclick: () => {
+        if (!enPause) { enPause = true; clearInterval(surveillance); arreterCamera(); video.srcObject = null; indication.textContent = 'Caméra en pause. Touchez ▶️ pour la rallumer.'; pause.textContent = '▶️'; pause.setAttribute('aria-label', 'Rallumer la caméra'); return; }
+        enPause = false; pause.textContent = '⏸'; pause.setAttribute('aria-label', 'Éteindre la caméra'); indication.textContent = 'Redémarrage de la caméra…';
+        rallumer();
+      } }, '⏸');
+      const relancer = el('button', { class: 'btn relancer', hidden: true, onclick: () => rallumer() }, '↻ Réessayer');
+      const detail = el('div', 'detail-camera', '');
+      const rallumer = () => {
+        relancer.hidden = true; detail.textContent = '';
         clearInterval(surveillance); arreterCamera();
-        if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { echecCamera(indication, relancer, BLOQUEE); return; }
+        if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { echecCamera(indication, relancer, BLOQUEE, detail, 'pas de caméra accessible'); return; }
+        // La demande part du geste du doigt : c'est ce qu'iOS exige.
         navigator.mediaDevices.getUserMedia(CONTRAINTES)
-          .then(stream => { demarrerCamera(video, indication, code => chercher(code, resultat), relancer, stream); surveillerCamera(video, indication, relancer); })
-          .catch(() => echecCamera(indication, relancer, BLOQUEE));
-      } }, '▶️ Relancer la caméra');
-      conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), relancer, indication));
-      demarrerCamera(video, indication, code => chercher(code, resultat), relancer);
-      surveillerCamera(video, indication, relancer);
+          .then(stream => { demarrerCamera(video, indication, code => chercher(code, resultat), relancer, stream, detail); surveillerCamera(video, indication, relancer, detail); })
+          .catch(e => echecCamera(indication, relancer, BLOQUEE, detail, e && (e.name + (e.message ? ' : ' + e.message : ''))));
+      };
+      conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), pause, relancer, indication, detail));
+      demarrerCamera(video, indication, code => chercher(code, resultat), relancer, null, detail);
+      surveillerCamera(video, indication, relancer, detail);
     } else {
       conteneur.append(el('div', 'carte douce', el('h3', {}, '📷 Saisie du code'), el('p', 'petit', 'La caméra n\u2019est pas disponible ici. Tapez les chiffres imprimés sous le code : la fiche arrive en une seconde.')));
     }
@@ -54,19 +63,21 @@
   }
 
   const CONTRAINTES = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false };
-  const BLOQUEE = 'iOS garde la caméra fermée pour cette ouverture de l’application. Fermez complètement Ma Table (balayez-la vers le haut dans le sélecteur d’applications), puis rouvrez-la. En attendant, tapez le code ci-dessous.';
-  function echecCamera(indication, relancer, texte) {
+  const BLOQUEE = 'La caméra reste fermée. Sur iPhone, après le bouton « Arrêter » du système, seule la fermeture complète de Ma Table la rend : balayez l’application vers le haut dans le sélecteur, puis rouvrez-la. En attendant, tapez le code ci-dessous.';
+  const COUPEE = 'La caméra a été coupée par le système. Sur iPhone, elle ne revient qu’en fermant complètement Ma Table (balayez-la vers le haut dans le sélecteur d’applications), puis en la rouvrant. Pour l’éteindre sans ce souci, utilisez le bouton ⏸ du cadre.';
+  function echecCamera(indication, relancer, texte, detail, motif) {
     indication.textContent = texte;
     if (relancer) relancer.hidden = false;
+    if (detail) detail.textContent = motif ? 'Détail technique : ' + motif : '';
   }
-  async function demarrerCamera(video, indication, auCode, relancer, fluxDejaOuvert) {
-    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode, relancer, fluxDejaOuvert);
+  async function demarrerCamera(video, indication, auCode, relancer, fluxDejaOuvert, detail) {
+    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode, relancer, fluxDejaOuvert, detail);
     try {
       flux = fluxDejaOuvert || await navigator.mediaDevices.getUserMedia(CONTRAINTES);
       video.srcObject = flux;
       await video.play();
     } catch (e) {
-      echecCamera(indication, relancer, 'Caméra indisponible. Touchez « Relancer », ou tapez le code ci-dessous. Si elle reste bloquée : fermez complètement Ma Table et rouvrez-la.');
+      echecCamera(indication, relancer, BLOQUEE, detail, e && (e.name + (e.message ? ' : ' + e.message : '')));
       return;
     }
     let detecteur;
@@ -105,7 +116,7 @@
   }
   function cameraArretee(video) { return etatCamera(video) === 'arretee'; }
   let surveillance = null;
-  function surveillerCamera(video, indication, relancer) {
+  function surveillerCamera(video, indication, relancer, detail) {
     clearInterval(surveillance);
     let aTourne = false;
     surveillance = setInterval(() => {
@@ -116,14 +127,15 @@
       if (etat === 'arretee' && aTourne) {
         clearInterval(surveillance);
         arreterCamera();
-        indication.textContent = 'Caméra arrêtée.';
+        indication.textContent = COUPEE;
         relancer.hidden = false;
+        if (detail) detail.textContent = '';
       }
     }, 1000);
   }
 
   // Lecture par ZXing : la caméra est gérée par la bibliothèque, qui analyse les images en continu.
-  async function demarrerZXing(video, indication, auCode, relancer, fluxDejaOuvert) {
+  async function demarrerZXing(video, indication, auCode, relancer, fluxDejaOuvert, detail) {
     const Z = window.ZXing;
     let pause = false;
     const confirmer = S.confirmateur(2500);
@@ -148,7 +160,7 @@
       if (/Redémarrage/.test(indication.textContent)) indication.textContent = 'Placez le code-barres dans le cadre';
     } catch (e) {
       arreterCamera();
-      echecCamera(indication, relancer, 'Caméra indisponible. Touchez « Relancer », ou tapez le code ci-dessous. Si elle reste bloquée : fermez complètement Ma Table et rouvrez-la.');
+      echecCamera(indication, relancer, BLOQUEE, detail, e && (e.name + (e.message ? ' : ' + e.message : '')));
     }
   }
 

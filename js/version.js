@@ -2,8 +2,12 @@
 // Les nouveautés de chaque version sont affichées à la première ouverture qui suit la mise à jour.
 (function (racine) {
   racine.MaTable = racine.MaTable || {};
-  racine.MaTable.VERSION = '1.3.2';
+  racine.MaTable.VERSION = '1.3.3';
   racine.MaTable.NOUVEAUTES = {
+    '1.3.3': [
+      'Scanner : un bouton ⏸ dans le cadre éteint la caméra depuis Ma Table et la rallume d’un tap. Préférez-le au bouton « Arrêter » d’iOS.',
+      'Si iOS a coupé la caméra, le cadre dit clairement quoi faire : fermer complètement Ma Table puis la rouvrir.',
+    ],
     '1.3.2': ['Scanner : « Relancer la caméra » demande la caméra dans le geste même, comme iOS l’exige ; si iOS la garde fermée, le message explique quoi faire.'],
     '1.3.1': ['Scanner : « Relancer la caméra » recharge la page, seule façon fiable de rouvrir la caméra après une coupure par iOS.'],
     '1.3.0': [

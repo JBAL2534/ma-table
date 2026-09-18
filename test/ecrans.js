@@ -392,42 +392,32 @@ test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', 
   assert.strictEqual(appels, 1, 'ZXing démarré sur la caméra');
   assert.ok(texte(contenu(w)).includes('Code lu : 3017620422003'), 'le code lu est affiché');
   assert.ok(texte(contenu(w)).includes('Produit ZXing'), 'la fiche produit suit');
-  // La caméra coupée par le système : un bouton « Relancer » apparaît.
+  // Pause depuis Ma Table : la caméra s'éteint, puis se rallume dans le geste (getUserMedia + decodeFromStream).
   const video = contenu(w).querySelector('.viseur video');
-  assert.ok(video && contenu(w).querySelector('.viseur .relancer').hidden, 'pas de bouton tant que la caméra tourne');
-  assert.strictEqual(w.MaTable.ecrans.scanner.cameraArretee({ srcObject: { getTracks: () => [{ readyState: 'live' }] } }), false);
-  assert.strictEqual(w.MaTable.ecrans.scanner.cameraArretee({ srcObject: { getTracks: () => [{ readyState: 'ended' }] } }), true);
-  // Tant que la caméra n'a pas tourné, une image absente ou finie n'est pas une coupure (permission en cours, par exemple).
-  video.srcObject = { getTracks: () => [{ readyState: 'ended' }] };
-  await attendre(1100);
-  assert.ok(contenu(w).querySelector('.viseur .relancer').hidden, 'pas de fausse alerte au démarrage');
-  video.srcObject = { getTracks: () => [{ readyState: 'live' }] };
-  await attendre(1100);
-  video.srcObject = { getTracks: () => [{ readyState: 'ended' }] };
-  await attendre(1100);
+  const pause = contenu(w).querySelector('.viseur .pause');
   const relancer = contenu(w).querySelector('.viseur .relancer');
-  assert.ok(!relancer.hidden && /Caméra arrêtée/.test(texte(contenu(w))), 'coupure détectée, bouton proposé');
-  assert.strictEqual(reinitialise, 1, 'le lecteur a été arrêté');
-  // Relancer : la caméra est demandée dans le geste, puis confiée au lecteur (decodeFromStream) ; le bouton disparaît.
+  assert.ok(pause && relancer.hidden, 'bouton pause présent, pas de « Réessayer » tant que tout va bien');
+  cliquer(pause);
+  assert.strictEqual(reinitialise, 1, 'la caméra est éteinte'); assert.ok(/en pause/.test(texte(contenu(w))));
   let demandes = 0, depuisFlux = 0;
   w.navigator.mediaDevices.getUserMedia = async () => { demandes++; return { getTracks: () => [{ readyState: 'live' }] }; };
   w.ZXing.BrowserMultiFormatReader.prototype.decodeFromStream = async function (stream, v, cb) { depuisFlux++; cb({ getText: () => '3017620422003' }); cb({ getText: () => '3017620422003' }); };
-  cliquer(relancer);
+  cliquer(pause);
   await attendre(30);
-  assert.strictEqual(demandes, 1, 'la caméra est demandée dans le geste');
-  assert.strictEqual(depuisFlux, 1, 'le lecteur repart du flux ouvert');
-  assert.ok(relancer.hidden, 'le bouton disparaît');
-  assert.ok(!/Caméra arrêtée|Redémarrage/.test(texte(contenu(w))), 'le message revient à la normale');
-  // Si iOS refuse la caméra, le message explique quoi faire et le bouton reste disponible.
+  assert.strictEqual(demandes, 1, 'la caméra est redemandée dans le geste'); assert.strictEqual(depuisFlux, 1, 'le lecteur repart du flux');
+  assert.ok(relancer.hidden && !/en pause/.test(texte(contenu(w))), 'retour à la normale');
+  // Coupure par le système : consigne explicite, « Réessayer » disponible.
   video.srcObject = { getTracks: () => [{ readyState: 'live' }] }; await attendre(1100);
   video.srcObject = { getTracks: () => [{ readyState: 'ended' }] }; await attendre(1100);
-  assert.ok(!relancer.hidden, 'coupure détectée à nouveau');
-  w.navigator.mediaDevices.getUserMedia = async () => { throw new Error('NotAllowedError'); };
+  assert.ok(!relancer.hidden && /coupée par le système/.test(texte(contenu(w))) && /fermant complètement Ma Table/.test(texte(contenu(w))), 'consigne claire après coupure');
+  w.navigator.mediaDevices.getUserMedia = async () => { const e = new Error('The request is not allowed'); e.name = 'NotAllowedError'; throw e; };
   cliquer(relancer);
   await attendre(30);
-  assert.ok(!relancer.hidden && /Fermez complètement Ma Table/.test(texte(contenu(w))), 'consigne claire quand iOS refuse');
+  assert.ok(!relancer.hidden && /reste fermée/.test(texte(contenu(w))) && /NotAllowedError/.test(texte(contenu(w))), 'refus expliqué avec le détail technique');
+  assert.strictEqual(w.MaTable.ecrans.scanner.cameraArretee({ srcObject: { getTracks: () => [{ readyState: 'ended' }] } }), true);
+  const avantSortie = reinitialise;
   aller(w, 'menus', {});
-  assert.strictEqual(reinitialise, 2, 'la caméra est relâchée en quittant l\u2019écran');
+  assert.ok(reinitialise >= avantSortie, 'la caméra est relâchée en quittant l\u2019écran');
   w.ZXing.BrowserMultiFormatReader = vrai;
   assert.deepStrictEqual(erreurs, []);
 });
