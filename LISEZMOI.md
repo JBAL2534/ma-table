@@ -73,12 +73,14 @@ python3 -m http.server 8792                          # puis http://localhost:879
 ## Versions
 
 Le numéro vit dans `js/version.js` (repris par `package.json`, le cache hors-ligne et l'écran Profil).
-Un test vérifie qu'ils sont d'accord. À chaque publication : changer le numéro.
+Un test vérifie qu'ils sont d'accord. À chaque publication : changer le numéro **et** ajouter les
+nouveautés dans `js/version.js` (elles s'affichent à la première ouverture qui suit).
 
 | Version | Contenu |
 | --- | --- |
 | 1.0.0 | Menus, batch cooking, courses multi-magasins, scanner, historique, profil, PWA iPhone |
 | 1.1.0 | Synchronisation entre appareils (gist GitHub), lecture caméra des codes-barres sur iPhone (ZXing), prix mémorisés depuis les tickets, magasins personnalisables, convives par repas, annulations (« Tout aux courses », scan), codes-barres confirmés |
+| 1.2.0 | Bandeau « Mise à jour prête », fenêtre « Nouveautés » après chaque mise à jour, « Rechercher une mise à jour » dans Profil |
 | 1.1.1 | Correction : la ligne « Proposer à nouveau / Tableau de bord » débordait de la carte sur iPhone |
 
 ## Publier

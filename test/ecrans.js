@@ -73,6 +73,41 @@ test('le numéro de version est unique et affiché', () => {
   assert.ok(texte(contenu(w)).includes('version ' + version), 'la version est visible dans Profil');
 });
 
+test('nouveautés à la première ouverture d\u2019une version, bandeau de mise à jour, vérification à la demande', async () => {
+  const version = JSON.parse(fs.readFileSync(path.join(racine, 'package.json'), 'utf8')).version;
+  assert.ok(w0 => true);
+  const { w, erreurs } = creerPage();
+  assert.ok(w.MaTable.NOUVEAUTES[version] && w.MaTable.NOUVEAUTES[version].length, 'la version courante a ses nouveautés');
+  // Première installation : pas de fenêtre nouveautés (seulement la bienvenue).
+  w.MaTable.app.demarrer();
+  assert.strictEqual(dialogues(w).length, 1); assert.ok(/Bienvenue/.test(texte(dialogues(w)[0])));
+  fermerFeuilles(w);
+  const etat = w.MaTable.Stockage.etat; etat.utilisateur = 'm1';
+  assert.strictEqual(etat.derniereVersionVue, version, 'la version vue est mémorisée');
+  // Mise à jour depuis une ancienne version : la fenêtre s'ouvre avec les versions intermédiaires.
+  etat.derniereVersionVue = '1.0.0';
+  w.MaTable.app.nouveautes();
+  const d = dialogues(w)[0];
+  assert.ok(d && /Nouveautés/.test(texte(d)) && /1\.1\.0/.test(texte(d)) && /Synchronisation/.test(texte(d)), 'nouveautés de 1.1.0 à ' + version);
+  cliquer(boutons(w, d).find(b => /Compris/.test(texte(b))));
+  assert.strictEqual(etat.derniereVersionVue, version);
+  w.MaTable.app.nouveautes(); assert.strictEqual(dialogues(w).length, 0, 'ne se réaffiche pas');
+  // Bandeau de mise à jour.
+  w.MaTable.app.signalerMiseAJour(); w.MaTable.app.signalerMiseAJour();
+  const bandeaux = w.document.querySelectorAll('.bandeau-maj');
+  assert.strictEqual(bandeaux.length, 1, 'un seul bandeau');
+  assert.ok(/nouvelle version/.test(texte(bandeaux[0])) && boutons(w, bandeaux[0]).some(b => /Mettre à jour/.test(texte(b))));
+  // Profil : boutons présents ; la recherche hors installation répond poliment.
+  aller(w, 'profil', {});
+  cliquer(boutons(w).find(b => /Rechercher une mise à jour/.test(texte(b))));
+  await attendre(5);
+  assert.ok(w.document.querySelector('.toast'), 'un message répond');
+  cliquer(boutons(w).find(b => /Nouveautés/.test(texte(b))));
+  assert.ok(dialogues(w).length === 1 && /Nouveautés/.test(texte(dialogues(w)[0])), 'les nouveautés se relisent depuis Profil');
+  assert.strictEqual(w.MaTable.app.compareVersions('1.2.0', '1.1.9'), 1);
+  assert.deepStrictEqual(erreurs, []);
+});
+
 test('la feuille de style a un mode sombre et des zones tactiles de 44 px', () => {
   const css = fs.readFileSync(path.join(racine, 'css/style.css'), 'utf8');
   assert.ok(css.includes('prefers-color-scheme: dark'));

@@ -243,6 +243,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--sauge); box-shad
 .navigation a.central .ico { width: 56px; height: 56px; border-radius: 50%; background: var(--terracotta); color: #fff; display: flex; align-items: center; justify-content: center; margin-top: -26px; box-shadow: 0 6px 18px rgba(201, 123, 90, .45); font-size: 1.5rem; border: 4px solid var(--creme); }
 .navigation a.central[aria-current="page"] .ico { background: var(--terracotta-fonce); }
 
+/* Bandeau de mise à jour */
+.bandeau-maj { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--ambre-clair); color: var(--ambre-texte); font-weight: 700; box-shadow: var(--ombre); }
+.bandeau-maj .btn { background: var(--ambre); color: #3a2f10; }
+
 /* Feuilles (fenêtres du bas) et messages */
 .voile { position: fixed; inset: 0; background: rgba(30, 30, 20, .45); z-index: 70; display: flex; align-items: flex-end; justify-content: center; animation: fondu .18s ease-out; }
 @keyframes fondu { from { opacity: 0; } to { opacity: 1; } }

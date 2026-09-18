@@ -274,6 +274,8 @@
       el('p', 'gras', 'Comment Ma Table propose une semaine'), el('p', 'petit', 'Des règles simples, pas de boîte noire : dîners de semaine en 25 minutes ou réchauffés, lunch boxes préparées le jour du batch, au moins deux dîners approuvés enfant, un repas plaisir le week-end, protéines variées. Vos avis « On refait » et « Jamais plus » comptent, ainsi que les aliments que chacun aime peu.'),
       el('div', 'espace'),
       el('p', 'gras', 'Ce que l’application ne fait pas'), el('p', 'petit', 'Pas de calories, pas de compte à créer, pas de serveur : vos données restent sur le téléphone. La synchronisation entre deux téléphones passe par le fichier d’export. Le scanner lit les codes-barres avec la caméra et interroge Open Food Facts ; la photo du frigo ou du ticket demande une clé API (option).'),
+      el('div', 'espace'),
+      el('div', 'boutons', el('button', { class: 'btn', onclick: () => app().rechercherMiseAJour() }, '🔄 Rechercher une mise à jour'), el('button', { class: 'btn', onclick: () => { const e = E(); e.derniereVersionVue = '0.0.0'; app().nouveautes(); } }, '✨ Nouveautés')),
       el('div', 'espace'), el('p', 'minuscule', 'Ma Table · version ' + MaTable.VERSION + ' · données produits : Open Food Facts (licence ouverte) · lecture des codes-barres : ZXing (MIT).'));
   }
 
