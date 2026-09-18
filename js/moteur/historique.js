@@ -199,5 +199,44 @@
     return { repas: BOM + repas.join('\n'), achats: BOM + achats.join('\n') };
   }
 
-  MaTable.Historique = { repasDeSemaine, avisDe, noter, resumeSemaine, semainesConnues, reutiliserSemaine, rechercher, statistiques, tableauDeBord, csv, depensesParMagasin };
+  // Prix mémorisés : tirés des tickets photographiés (chaque ligne porte son prix).
+  function dernierPrix(etat, nom) {
+    const cle = U.racineMot(nom);
+    let meilleur = null;
+    for (const a of etat.achats) {
+      for (const art of a.articles || []) {
+        if (art.prix == null || U.racineMot(art.nom) !== cle) continue;
+        if (!meilleur || a.date > meilleur.date) meilleur = { prix: Number(art.prix), magasin: a.magasin, date: a.date };
+      }
+    }
+    return meilleur;
+  }
+  function totalEstime(etat, articles) {
+    let total = 0, connus = 0, inconnus = 0;
+    for (const a of articles) {
+      if (a.coche) continue;
+      const p = dernierPrix(etat, a.nom);
+      if (p) { total += p.prix; connus++; } else inconnus++;
+    }
+    return { total: Math.round(total * 100) / 100, connus, inconnus };
+  }
+  // Les articles dont le prix a bougé entre le premier et le dernier relevé.
+  function variationsPrix(etat, mois) {
+    const depuis = U.iso(new Date(Date.now() - (mois || 3) * 30.5 * 86400000));
+    const series = {};
+    for (const a of etat.achats.slice().sort((x, y) => x.date.localeCompare(y.date))) {
+      if (a.date < depuis) continue;
+      for (const art of a.articles || []) {
+        if (art.prix == null) continue;
+        const k = U.racineMot(art.nom);
+        (series[k] = series[k] || { nom: art.nom, releves: [] }).releves.push({ date: a.date, prix: Number(art.prix), magasin: a.magasin });
+      }
+    }
+    return Object.values(series).filter(s => s.releves.length >= 2).map(s => {
+      const premier = s.releves[0], dernier = s.releves[s.releves.length - 1];
+      return { nom: s.nom, avant: premier.prix, apres: dernier.prix, ecart: Math.round((dernier.prix - premier.prix) * 100) / 100, releves: s.releves.length, magasin: dernier.magasin };
+    }).filter(v => v.ecart !== 0).sort((a, b) => Math.abs(b.ecart) - Math.abs(a.ecart)).slice(0, 10);
+  }
+
+  MaTable.Historique = { dernierPrix, totalEstime, variationsPrix, repasDeSemaine, avisDe, noter, resumeSemaine, semainesConnues, reutiliserSemaine, rechercher, statistiques, tableauDeBord, csv, depensesParMagasin };
 })(typeof window !== 'undefined' ? window : globalThis);

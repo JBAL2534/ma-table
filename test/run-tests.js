@@ -538,6 +538,22 @@ test('synchronisation par gist : deux appareils convergent', async () => {
   Sy.fetchImpl = null;
 });
 
+test('prix mémorisés depuis les tickets : dernier prix, estimation, variations', () => {
+  const etat = etatNeuf(); const H = T.Historique; const C = T.Courses;
+  etat.achats.push({ id: 'a1', date: '2026-08-20', magasin: 'grand_frais', articles: [{ nom: 'Tomates', prix: 2.1 }, { nom: 'Lait', prix: 1.05 }], montant: 3.15, source: 'ticket' });
+  etat.achats.push({ id: 'a2', date: '2026-09-10', magasin: 'supermarche', articles: [{ nom: 'tomate', prix: 2.6 }, { nom: 'Beurre', prix: null }], montant: 2.6, source: 'ticket' });
+  const p = H.dernierPrix(etat, 'Tomates');
+  assert.strictEqual(p.prix, 2.6); assert.strictEqual(p.magasin, 'supermarche');
+  assert.strictEqual(H.dernierPrix(etat, 'Beurre'), null, 'pas de prix connu');
+  C.ajouter(etat.liste, { nom: 'Tomates' }); C.ajouter(etat.liste, { nom: 'Lait' }); C.ajouter(etat.liste, { nom: 'Beurre' }); C.ajouter(etat.liste, { nom: 'Pain' });
+  C.cocher(etat.liste[1], true, 'm1');
+  const e = H.totalEstime(etat, etat.liste);
+  assert.strictEqual(e.total, 2.6, 'le lait coché ne compte plus'); assert.strictEqual(e.connus, 1); assert.strictEqual(e.inconnus, 2);
+  const v = H.variationsPrix(etat, 3);
+  assert.strictEqual(v.length, 1); assert.strictEqual(v[0].ecart, 0.5); assert.strictEqual(v[0].releves, 2);
+  assert.deepStrictEqual(H.variationsPrix(etatNeuf(), 3), []);
+});
+
 (async () => {
   for (const t of tests) {
     try { await t.f(); reussis++; console.log('  ✓ ' + t.nom); }

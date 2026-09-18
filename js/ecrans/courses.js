@@ -1,7 +1,7 @@
 // Écran Courses : la liste vivante par magasin, le mode « En magasin », les essentiels et le garde-manger.
 (function (racine) {
   const MaTable = racine.MaTable;
-  const U = MaTable.util, C = MaTable.Courses, S = MaTable.Scan, M = MaTable.Menus;
+  const U = MaTable.util, C = MaTable.Courses, S = MaTable.Scan, M = MaTable.Menus, H = MaTable.Historique;
   const { el, feuille, menuActions, toast, confirmer, demander, vide, segments, sauver, sauverDoucement, vibrer, utilisateur, membreNom, copier, partager } = MaTable.ui;
   const E = () => MaTable.Stockage.etat;
   const app = () => MaTable.app;
@@ -81,6 +81,8 @@
       carte.append(el('div', 'rayon-titre', g.coche ? '✓ Dans le panier' : g.rayon));
       for (const a of g.articles) carte.append(ligneArticle(a, false));
     }
+    const estimation = H.totalEstime(etat, arts);
+    if (estimation.connus) carte.append(el('p', { class: 'petit', style: 'margin-top:12px;text-align:right' }, 'Estimation : ' + U.euros(estimation.total) + ' pour ' + U.pluriel(estimation.connus, 'article au prix connu', 'articles au prix connu') + (estimation.inconnus ? ' · ' + U.pluriel(estimation.inconnus, 'sans prix') : '')));
     conteneur.append(carte);
     const coches = arts.filter(a => a.coche).length;
     conteneur.append(el('div', 'boutons colonne',
@@ -91,7 +93,8 @@
 
   function ligneArticle(a, grand) {
     const etat = E();
-    const detail = [a.qte != null ? U.formaterQte(a.qte, a.unite) : (a.unite || ''), a.coche && a.cochePar ? 'coché par ' + (membreNom(etat, a.cochePar) || '?') : '', !a.coche && a.sources.length && a.sources[0] !== 'manuel' ? 'pour : ' + a.sources.filter(s => s !== 'manuel').map(s => s.replace(/^semaine .*/, 'la semaine').replace(/^batch .*/, 'le batch')).slice(0, 2).join(', ') : ''].filter(Boolean).join(' · ');
+    const prix = H.dernierPrix(etat, a.nom);
+    const detail = [a.qte != null ? U.formaterQte(a.qte, a.unite) : (a.unite || ''), prix ? U.euros(prix.prix) + (prix.magasin !== a.magasin ? ' (' + C.nomMagasin(prix.magasin) + ')' : '') : '', a.coche && a.cochePar ? 'coché par ' + (membreNom(etat, a.cochePar) || '?') : '', !a.coche && a.sources.length && a.sources[0] !== 'manuel' ? 'pour : ' + a.sources.filter(s => s !== 'manuel').map(s => s.replace(/^semaine .*/, 'la semaine').replace(/^batch .*/, 'le batch')).slice(0, 2).join(', ') : ''].filter(Boolean).join(' · ');
     return el('div', { class: 'article' + (a.coche ? ' est-coche' : ''), dataset: { id: a.id } },
       el('button', { class: 'coche', 'aria-label': (a.coche ? 'Décocher ' : 'Cocher ') + a.nom, 'aria-pressed': String(a.coche), onclick: (ev) => { C.cocher(a, !a.coche, utilisateur(etat)); vibrer(); if (grand) { sauverDoucement(); rafraichirMagasin(); } else sauver(); } }, a.coche ? '✓' : ''),
       el('button', { class: 'corps', onclick: () => menuArticle(a) }, el('div', 'nom', a.nom), detail ? el('div', 'detail', detail) : null),
@@ -167,6 +170,8 @@
       plein.append(el('div', 'rayon-titre', g.coche ? '✓ Dans le panier' : g.rayon));
       for (const a of g.articles) plein.append(ligneArticle(a, true));
     }
+    const estimation = H.totalEstime(etat, arts);
+    if (estimation.connus) plein.append(el('p', { class: 'petit', style: 'text-align:right;margin-top:10px' }, 'Reste environ ' + U.euros(estimation.total) + (estimation.inconnus ? ' + ' + U.pluriel(estimation.inconnus, 'article sans prix', 'articles sans prix') : '')));
     plein.append(el('div', 'espace'), el('div', 'espace'));
     plein.append(el('button', { class: 'btn principal grand large', disabled: !faits, onclick: () => terminer(magasin) }, '✓ Terminer ce magasin'));
     if (faits === total && total) { vibrer(30); }

@@ -85,7 +85,8 @@ test('chaque écran s’affiche sans erreur, au premier lancement comme avec des
   etat.semaines[lundi] = w.MaTable.Menus.genererSemaine(etat, lundi, 11);
   etat.semaines[w.MaTable.util.ajouterJours(lundi, -7)] = w.MaTable.Menus.genererSemaine(etat, w.MaTable.util.ajouterJours(lundi, -7), 12);
   w.MaTable.Courses.ajouterIngredients(etat.liste, w.MaTable.Menus.ingredientsSemaine(etat, etat.semaines[lundi]), {}, [], 'semaine');
-  etat.achats.push({ id: 'a1', date: w.MaTable.util.ajouterJours(lundi, -5), magasin: 'biocoop', articles: [{ nom: 'Quinoa', qte: 500, unite: 'g', rayon: 'Épicerie' }], montant: 12.5 });
+  etat.achats.push({ id: 'a1', date: w.MaTable.util.ajouterJours(lundi, -5), magasin: 'biocoop', articles: [{ nom: 'Quinoa', qte: 500, unite: 'g', rayon: 'Épicerie', prix: 4.2 }], montant: 12.5 });
+  etat.achats.push({ id: 'a0', date: w.MaTable.util.ajouterJours(lundi, -12), magasin: 'biocoop', articles: [{ nom: 'Quinoa', prix: 3.9 }], montant: 3.9 });
   etat.avis.push({ id: 'v1', date: w.MaTable.util.ajouterJours(lundi, -6), creneau: 'soir', recetteId: 'r8', titre: 'x', note: 'refait', enfant: 'adore', quand: new Date().toISOString() });
   etat.gardeManger.push({ id: 'g1', nom: 'Gnocchis', qte: '500 g', rayon: 'Épicerie', peremption: w.MaTable.util.ajouterJours(w.MaTable.util.aujourdhui(), 2), epuise: false });
   etat.reglages.drive.actif = true;
@@ -95,6 +96,13 @@ test('chaque écran s’affiche sans erreur, au premier lancement comme avec des
     ['courses', {}], ['courses', { onglet: 'liste', magasin: 'biocoop' }], ['courses', { mode: 'magasin', magasin: 'supermarche' }], ['courses', { onglet: 'essentiels' }], ['courses', { onglet: 'garde' }],
     ['scanner', {}], ['historique', {}], ['historique', { onglet: 'semaines', lundi }], ['historique', { onglet: 'tableau' }], ['historique', { onglet: 'stats' }], ['historique', { q: 'quinoa' }], ['profil', {}]];
   for (const [e, p] of vues) { aller(w, e, p); verifierSain(w, erreurs, e + ' ' + JSON.stringify(p)); }
+  w.MaTable.Courses.ajouter(etat.liste, { nom: 'Quinoa', qte: 500, unite: 'g' }); w.MaTable.Stockage.sauver();
+  aller(w, 'courses', { onglet: 'liste', magasin: 'biocoop' });
+  assert.ok(texte(contenu(w)).includes('4,20 €') && texte(contenu(w)).includes('Estimation'), 'prix mémorisé et estimation affichés');
+  aller(w, 'historique', { onglet: 'stats' });
+  assert.ok(texte(contenu(w)).includes('Prix qui ont bougé') && texte(contenu(w)).includes('+0,30 €'), 'variation de prix affichée');
+  aller(w, 'profil', {});
+  assert.ok(texte(contenu(w)).includes('Ouverte dans le navigateur'), 'la provenance des données est indiquée');
   aller(w, 'courses', { mode: 'magasin', magasin: 'supermarche' });
   assert.ok(w.document.querySelector('.magasin-plein .compteur'), 'le mode magasin affiche un compteur');
   assert.strictEqual(w.document.getElementById('navigation').style.display, 'none', 'la navigation disparaît en mode magasin');

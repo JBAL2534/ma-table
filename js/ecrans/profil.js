@@ -14,6 +14,7 @@
     conteneur.append(carteOrganisation(etat));
     conteneur.append(carteMagasins(etat));
     conteneur.append(carteDrive(etat));
+    conteneur.append(carteOuUnDonnees(etat));
     conteneur.append(carteSynchro(etat));
     conteneur.append(carteIA(etat));
     conteneur.append(cartePoids(etat));
@@ -114,7 +115,7 @@
               el('li', {}, 'Collez-la ci-dessous, sur chaque appareil. En cas de perte d\u2019un téléphone, supprimez le jeton sur GitHub.'))),
           el('div', 'espace'),
           el('label', 'champ', el('span', {}, 'Jeton GitHub'), champ),
-          el('div', 'boutons', el('button', { class: 'btn principal', onclick: async () => { const v = champ.value.trim(); if (!v) { toast('Collez d\u2019abord le jeton.'); return; } toast('Connexion à GitHub…', 1500); try { const r = await Sy.configurer(etat, v); if (r && r.erreur) throw new Error(r.erreur); toast('✓ Synchronisation activée.' + (r && r.recu ? ' ' + r.recu + ' changements reçus.' : '')); app().rafraichir(); } catch (e) { toast(e.message, 4500); Sy.desactiver(etat); } } }, 'Activer la synchronisation'))));
+          el('div', 'boutons', el('button', { class: 'btn principal', onclick: async () => { const v = champ.value.trim(); if (!v) { toast('Collez d\u2019abord le jeton.'); return; } toast('Connexion à GitHub…', 1500); try { const r = await Sy.configurer(etat, v); if (r && r.erreur) throw new Error(r.erreur); toast('✓ Synchronisation activée.' + (r && r.recu ? ' ' + r.recu + ' changements reçus.' : '')); app().rafraichir(); } catch (e) { toast(e.message, 6000); etat.synchro.actif = false; MaTable.Stockage.sauverSilencieux(); champ.value = v; } } }, 'Activer la synchronisation'))));
   }
 
   function carteIA(etat) {
@@ -189,6 +190,22 @@
   }
 
   // ---- Données -------------------------------------------------------------------
+  // Sur iPhone, Safari et l'icône de l'écran d'accueil ont chacun leur propre espace de stockage.
+  function modeOuverture() {
+    try {
+      if (navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)) return 'icone';
+    } catch (e) { /* pas d'information */ }
+    return 'navigateur';
+  }
+  function carteOuUnDonnees(etat) {
+    const mode = modeOuverture();
+    const mobile = /iPhone|iPad|Android/i.test(navigator.userAgent || '');
+    return el('div', 'carte ambre', el('h3', {}, mode === 'icone' ? '📱 Ouverte depuis l\u2019icône de l\u2019écran d\u2019accueil' : '🌐 Ouverte dans le navigateur'),
+      el('p', 'petit', mobile
+        ? 'Sur un téléphone, l\u2019icône et le navigateur ont chacun leurs propres données : clés, réglages, listes. Saisissez les clés et utilisez Ma Table toujours depuis le même endroit, de préférence l\u2019icône. Une fois la synchronisation activée des deux côtés, listes et menus se rejoignent ; les clés, elles, restent à recoller.'
+        : 'Les données de Ma Table sont enregistrées dans ce navigateur, sur cet ordinateur. Un autre navigateur ou un autre ordinateur part de zéro, sauf synchronisation.'));
+  }
+
   function carteDonnees(etat) {
     const St = MaTable.Stockage;
     const copie = St.copieDeSurete();
