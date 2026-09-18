@@ -7,14 +7,16 @@
   const E = () => MaTable.Stockage.etat;
   const app = () => MaTable.app;
 
-  let flux = null, boucle = null;
+  let flux = null, boucle = null, lecteurZXing = null;
   function arreterCamera() {
     if (boucle) { clearTimeout(boucle); boucle = null; }
+    if (lecteurZXing) { try { lecteurZXing.reset(); } catch (e) { /* déjà arrêté */ } lecteurZXing = null; }
     if (flux) { try { flux.getTracks().forEach(t => t.stop()); } catch (e) { /* déjà arrêtée */ } flux = null; }
   }
 
+  // Lecture native quand le navigateur sait le faire (Android, Chrome), sinon par ZXing en JavaScript (iPhone, Mac).
   function cameraPossible() {
-    return typeof window.BarcodeDetector !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (typeof window.BarcodeDetector !== 'undefined' || typeof window.ZXing !== 'undefined'));
   }
 
   function monter(conteneur, params) {
@@ -28,7 +30,7 @@
       conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), indication));
       demarrerCamera(video, indication, code => chercher(code, resultat));
     } else {
-      conteneur.append(el('div', 'carte douce', el('h3', {}, '📷 Saisie du code'), el('p', 'petit', 'Sur cet appareil, la caméra ne peut pas lire les codes-barres depuis une page web. Tapez les chiffres imprimés sous le code : la fiche arrive en une seconde.')));
+      conteneur.append(el('div', 'carte douce', el('h3', {}, '📷 Saisie du code'), el('p', 'petit', 'La caméra n\u2019est pas disponible ici. Tapez les chiffres imprimés sous le code : la fiche arrive en une seconde.')));
     }
     const champ = el('input', { type: 'tel', inputmode: 'numeric', placeholder: 'Chiffres sous le code-barres', 'aria-label': 'Code-barres', enterkeyhint: 'search', value: params.code || '' });
     const valider = () => chercher(champ.value, resultat);
@@ -42,6 +44,7 @@
   }
 
   async function demarrerCamera(video, indication, auCode) {
+    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode);
     try {
       flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
       video.srcObject = flux;
@@ -69,6 +72,30 @@
       boucle = setTimeout(tour, 250);
     };
     tour();
+  }
+
+  // Lecture par ZXing : la caméra est gérée par la bibliothèque, qui analyse les images en continu.
+  async function demarrerZXing(video, indication, auCode) {
+    const Z = window.ZXing;
+    let dernier = '', pause = false;
+    try {
+      const indices = new Map();
+      indices.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128]);
+      indices.set(Z.DecodeHintType.TRY_HARDER, true);
+      lecteurZXing = new Z.BrowserMultiFormatReader(indices, 250);
+      await lecteurZXing.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }, video, (resultat) => {
+        if (!resultat || pause) return;
+        const code = resultat.getText();
+        if (!code || code === dernier) return;
+        dernier = code; pause = true; vibrer(20);
+        indication.textContent = 'Code lu : ' + code;
+        auCode(code);
+        boucle = setTimeout(() => { pause = false; dernier = ''; indication.textContent = 'Placez le code-barres dans le cadre'; }, 4000);
+      });
+    } catch (e) {
+      indication.textContent = 'Caméra indisponible : autorisez-la dans les réglages, ou tapez le code ci-dessous.';
+      arreterCamera();
+    }
   }
 
   async function chercher(code, zone) {

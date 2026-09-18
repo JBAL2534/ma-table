@@ -1,9 +1,9 @@
 // Service worker : l'application s'ouvre même sans réseau (liste de courses comprise).
 // Les appels à Open Food Facts passent toujours par le réseau.
-const CACHE = 'ma-table-v2';
+const CACHE = 'ma-table-v3';
 const FICHIERS = [
   './', './index.html', './manifest.webmanifest', './css/style.css',
-  './js/util.js', './js/donnees/recettes.js', './js/donnees/articles.js',
+  './js/lib/zxing.min.js', './js/util.js', './js/donnees/recettes.js', './js/donnees/articles.js',
   './js/moteur/stockage.js', './js/moteur/courses.js', './js/moteur/menus.js', './js/moteur/historique.js', './js/moteur/scan.js', './js/moteur/ia.js', './js/moteur/synchro.js',
   './js/ui.js', './js/ecrans/menus.js', './js/ecrans/courses.js', './js/ecrans/scanner.js', './js/ecrans/historique.js', './js/ecrans/profil.js', './js/app.js',
   './icones/icone-192.png', './icones/icone-512.png', './icones/icone-180.png',

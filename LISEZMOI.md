@@ -18,7 +18,8 @@ iPhone (PWA installable, fonctionne hors ligne), 100 % en français, sans compte
   réactivables d'un tap, suggestions tirées de l'historique, mode « En magasin » plein écran avec
   compteur et écran maintenu allumé, « Terminer ce magasin » qui archive et remplit le garde-manger.
   Option Drive : liste prête à coller et liens de recherche.
-- **Scanner** : code-barres (caméra si l'appareil le permet, sinon saisie) via Open Food Facts,
+- **Scanner** : code-barres par la caméra (lecture native quand le navigateur la propose, sinon
+  par la bibliothèque ZXing embarquée, licence MIT ; saisie des chiffres en secours) via Open Food Facts,
   Nutri-Score, alternative douce pour un D ou un E. En option, avec votre propre clé API
   Anthropic : photo d'un produit, du frigo ou d'un ticket de caisse.
 - **Historique** : semaines archivées, notation des repas (« On refait », « Bof », « Jamais
@@ -51,6 +52,7 @@ iPhone (PWA installable, fonctionne hors ligne), 100 % en français, sans compte
 | `js/moteur/` | Toute la logique, sans interface : `stockage` (dont la fusion), `courses`, `menus`, `historique`, `scan`, `ia`, `synchro` |
 | `js/ecrans/` | Un fichier par onglet |
 | `js/ui.js`, `js/app.js` | Aides d'affichage, navigation |
+| `js/lib/zxing.min.js` | Seule dépendance embarquée : lecture des codes-barres (ZXing, MIT) |
 | `sw.js`, `manifest.webmanifest`, `icones/` | Installation et hors-ligne |
 | `test/run-tests.js` | Tests du moteur |
 | `test/ecrans.js` | Chaque écran monté dans jsdom, chaque bouton cliqué, parcours du premier jour |
