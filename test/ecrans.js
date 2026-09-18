@@ -61,6 +61,18 @@ test('la page est bien une PWA pour iPhone', () => {
   assert.ok(!/unsafe-eval|new Function\(|\beval\(/.test(fs.readFileSync(path.join(racine, 'js/ui.js'), 'utf8')), 'pas d’évaluation de texte');
 });
 
+test('le numéro de version est unique et affiché', () => {
+  const version = JSON.parse(fs.readFileSync(path.join(racine, 'package.json'), 'utf8')).version;
+  assert.ok(/^\d+\.\d+\.\d+$/.test(version));
+  assert.ok(fs.readFileSync(path.join(racine, 'js/version.js'), 'utf8').includes("VERSION = '" + version + "'"), 'js/version.js porte la même version que package.json');
+  const sw = fs.readFileSync(path.join(racine, 'sw.js'), 'utf8');
+  assert.ok(sw.includes("importScripts('./js/version.js')") && sw.includes("'ma-table-' + self.MaTable.VERSION"), 'le cache hors-ligne suit la version');
+  const { w } = creerPage();
+  w.MaTable.app.demarrer(); fermerFeuilles(w);
+  aller(w, 'profil', {});
+  assert.ok(texte(contenu(w)).includes('version ' + version), 'la version est visible dans Profil');
+});
+
 test('la feuille de style a un mode sombre et des zones tactiles de 44 px', () => {
   const css = fs.readFileSync(path.join(racine, 'css/style.css'), 'utf8');
   assert.ok(css.includes('prefers-color-scheme: dark'));

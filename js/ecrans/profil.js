@@ -9,7 +9,7 @@
 
   function monter(conteneur, params) {
     const etat = E();
-    conteneur.append(el('div', 'entete', el('div', {}, el('div', 'sur-titre', 'Ma Table'), el('h1', {}, 'Profil'))));
+    conteneur.append(el('div', 'entete', el('div', {}, el('div', 'sur-titre', 'Ma Table · version ' + MaTable.VERSION), el('h1', {}, 'Profil'))));
     conteneur.append(carteFamille(etat));
     conteneur.append(carteOrganisation(etat));
     conteneur.append(carteMagasins(etat));
@@ -274,7 +274,7 @@
       el('p', 'gras', 'Comment Ma Table propose une semaine'), el('p', 'petit', 'Des règles simples, pas de boîte noire : dîners de semaine en 25 minutes ou réchauffés, lunch boxes préparées le jour du batch, au moins deux dîners approuvés enfant, un repas plaisir le week-end, protéines variées. Vos avis « On refait » et « Jamais plus » comptent, ainsi que les aliments que chacun aime peu.'),
       el('div', 'espace'),
       el('p', 'gras', 'Ce que l’application ne fait pas'), el('p', 'petit', 'Pas de calories, pas de compte à créer, pas de serveur : vos données restent sur le téléphone. La synchronisation entre deux téléphones passe par le fichier d’export. Le scanner lit les codes-barres avec la caméra et interroge Open Food Facts ; la photo du frigo ou du ticket demande une clé API (option).'),
-      el('div', 'espace'), el('p', 'minuscule', 'Ma Table · version 1.0 · données produits : Open Food Facts (licence ouverte).'));
+      el('div', 'espace'), el('p', 'minuscule', 'Ma Table · version ' + MaTable.VERSION + ' · données produits : Open Food Facts (licence ouverte) · lecture des codes-barres : ZXing (MIT).'));
   }
 
   MaTable.ecrans = MaTable.ecrans || {};

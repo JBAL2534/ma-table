@@ -70,6 +70,16 @@ npm test
 python3 -m http.server 8792                          # puis http://localhost:8792/
 ```
 
+## Versions
+
+Le numéro vit dans `js/version.js` (repris par `package.json`, le cache hors-ligne et l'écran Profil).
+Un test vérifie qu'ils sont d'accord. À chaque publication : changer le numéro.
+
+| Version | Contenu |
+| --- | --- |
+| 1.0.0 | Menus, batch cooking, courses multi-magasins, scanner, historique, profil, PWA iPhone |
+| 1.1.0 | Synchronisation entre appareils (gist GitHub), lecture caméra des codes-barres sur iPhone (ZXing), prix mémorisés depuis les tickets, magasins personnalisables, convives par repas, annulations (« Tout aux courses », scan), codes-barres confirmés |
+
 ## Publier
 
 **En ligne** : https://jbal2534.github.io/ma-table/ (dépôt `JBAL2534/ma-table`, Pages sur `main`).

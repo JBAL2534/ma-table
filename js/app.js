@@ -86,7 +86,7 @@
         // viennent alors de la même version, dès la première ouverture.
         const dejaControle = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (dejaControle && !racine.__MA_TABLE_RECHARGE) { racine.__MA_TABLE_RECHARGE = true; MaTable.ui.toast('Nouvelle version de Ma Table…', 1200); setTimeout(() => location.reload(), 600); }
+          if (dejaControle && !racine.__MA_TABLE_RECHARGE) { racine.__MA_TABLE_RECHARGE = true; MaTable.ui.toast('Ma Table se met à jour…', 1200); setTimeout(() => location.reload(), 600); }
         });
         navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => { /* hors ligne indisponible, l'application marche quand même */ });
       }
