@@ -326,6 +326,24 @@ test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', 
   assert.deepStrictEqual(erreurs, []);
 });
 
+test('dans Essentiels, le magasin se change d\u2019un tap et l\u2019habitude est retenue', async () => {
+  const { w, erreurs } = creerPage();
+  w.MaTable.app.demarrer(); fermerFeuilles(w);
+  const etat = w.MaTable.Stockage.etat; etat.utilisateur = 'm1';
+  aller(w, 'courses', { onglet: 'essentiels' });
+  const b = boutons(w).find(x => (x.getAttribute('aria-label') || '') === 'Changer le magasin de Lait');
+  assert.ok(b && /Supermarché/.test(texte(b)), 'le lait part au supermarché par défaut');
+  cliquer(b);
+  const d = dialogues(w)[0]; assert.ok(d, 'le choix du magasin s\u2019ouvre');
+  cliquer(boutons(w, d).find(x => /Biocoop/.test(texte(x))));
+  await attendre(5);
+  assert.strictEqual(w.MaTable.Courses.affecter('lait', { preferencesMagasin: etat.preferencesMagasin }).magasin, 'biocoop', 'habitude apprise');
+  assert.ok(/Biocoop/.test(texte(boutons(w).find(x => (x.getAttribute('aria-label') || '') === 'Changer le magasin de Lait'))), 'l\u2019écran reflète le choix');
+  cliquer(boutons(w).find(x => /＋ Liste/.test(texte(x)) && /Lait/.test(texte(x.closest('li')))));
+  assert.strictEqual(etat.liste.find(a => a.nom === 'Lait').magasin, 'biocoop', 'l\u2019ajout suit l\u2019habitude');
+  assert.deepStrictEqual(erreurs, []);
+});
+
 test('les réglages influencent la proposition (temps max, jour du batch, repas plaisir)', () => {
   const { w } = creerPage();
   w.MaTable.app.demarrer(); fermerFeuilles(w);

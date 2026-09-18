@@ -190,11 +190,25 @@
     const manquants = noms.filter(n => !dansListe.has(U.racineMot(n)));
     conteneur.append(el('div', 'carte', el('ul', 'liste', noms.map(n => {
       const present = dansListe.has(U.racineMot(n));
-      return el('li', {}, el('span', 'ico', '⭐'), el('span', 'pousse', el('div', 'gras', n), el('div', 'petit', C.nomMagasin(C.affecter(n, ctx()).magasin))),
+      const magasinActuel = C.affecter(n, ctx()).magasin;
+      return el('li', {}, el('span', 'ico', '⭐'), el('span', 'pousse', el('div', 'gras', n),
+        el('button', { class: 'btn discret petit-btn', style: 'padding:2px 0;min-height:28px;font-weight:600', 'aria-label': 'Changer le magasin de ' + n, onclick: () => choisirMagasinEssentiel(n, magasinActuel) }, C.emojiMagasin(magasinActuel) + ' ' + C.nomMagasin(magasinActuel) + ' ›')),
         present ? el('span', 'badge leger', 'Sur la liste') : el('button', { class: 'btn petit-btn principal', onclick: () => ajouterArticle(n) }, '＋ Liste'),
         el('button', { class: 'btn petit-btn', 'aria-label': 'Retirer ' + n + ' des essentiels', onclick: async () => { if (await confirmer(n + ' ne sera plus proposé comme essentiel.', { ok: 'Retirer' })) { C.basculerEssentiel(etat, n); sauver(); } } }, '✕'));
     }))));
     if (manquants.length > 1) conteneur.append(el('button', { class: 'btn large', onclick: () => { for (const n of manquants) C.ajouter(etat.liste, { nom: n, source: 'essentiel', essentiel: true, par: utilisateur(etat) }, ctx()); sauver(); toast(U.pluriel(manquants.length, 'essentiel ajouté', 'essentiels ajoutés') + ' à la liste.'); } }, 'Tout remettre sur la liste (' + manquants.length + ')'));
+  }
+
+  // Le magasin d'un essentiel : une habitude apprise, valable pour toutes les prochaines fois.
+  function choisirMagasinEssentiel(nom, actuel) {
+    const etat = E();
+    feuille({ titre: 'Où acheter ' + nom + ' ?', contenu: (corps, fermer) => el('div', 'menu-actions', C.MAGASINS.filter(m => etat.reglages.magasins.includes(m.id) || m.id === actuel).map(m =>
+      el('button', { onclick: () => {
+        const cle = U.racineMot(nom);
+        etat.preferencesMagasin[cle] = Object.assign({}, etat.preferencesMagasin[cle] || {}, { magasin: m.id, rayon: (etat.preferencesMagasin[cle] || {}).rayon || C.affecter(nom, ctx()).rayon });
+        for (const a of etat.liste) if (U.racineMot(a.nom) === cle && !a.coche) { a.magasin = m.id; C.toucher(a); }
+        fermer(); sauver(); toast(nom + ' ira désormais ' + (m.id === 'marche' ? 'au' : 'chez') + ' ' + m.nom + '.');
+      } }, el('span', 'ico', m.emoji), el('span', 'pousse', m.nom), m.id === actuel ? el('span', 'petit', 'actuel') : null))) });
   }
 
   // ---- Garde-manger ------------------------------------------------------------
