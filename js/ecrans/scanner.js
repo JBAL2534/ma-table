@@ -27,9 +27,10 @@
     if (cameraPossible()) {
       const video = el('video', { playsinline: true, muted: true, autoplay: true });
       const indication = el('div', 'indication', 'Placez le code-barres dans le cadre');
-      const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => { relancer.hidden = true; indication.textContent = 'Placez le code-barres dans le cadre'; demarrerCamera(video, indication, code => chercher(code, resultat)); surveillerCamera(video, indication, relancer); } }, '▶️ Relancer la caméra');
+      // Relancer = repartir d'un écran Scanner neuf : nouvelle vidéo, nouveau lecteur, rien d'ancien qui traîne.
+      const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => { clearInterval(surveillance); arreterCamera(); app().rafraichir(); } }, '▶️ Relancer la caméra');
       conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), relancer, indication));
-      demarrerCamera(video, indication, code => chercher(code, resultat));
+      demarrerCamera(video, indication, code => chercher(code, resultat), relancer);
       surveillerCamera(video, indication, relancer);
     } else {
       conteneur.append(el('div', 'carte douce', el('h3', {}, '📷 Saisie du code'), el('p', 'petit', 'La caméra n\u2019est pas disponible ici. Tapez les chiffres imprimés sous le code : la fiche arrive en une seconde.')));
@@ -45,19 +46,23 @@
     else conteneur.append(el('p', 'minuscule centre', 'Les fiches produits viennent d’Open Food Facts, une base collaborative et gratuite.'));
   }
 
-  async function demarrerCamera(video, indication, auCode) {
-    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode);
+  function echecCamera(indication, relancer, texte) {
+    indication.textContent = texte;
+    if (relancer) relancer.hidden = false;
+  }
+  async function demarrerCamera(video, indication, auCode, relancer) {
+    if (typeof window.BarcodeDetector === 'undefined') return demarrerZXing(video, indication, auCode, relancer);
     try {
       flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false });
       video.srcObject = flux;
       await video.play();
     } catch (e) {
-      indication.textContent = 'Caméra indisponible : autorisez-la dans les réglages, ou tapez le code ci-dessous.';
+      echecCamera(indication, relancer, 'Caméra indisponible : autorisez-la dans les réglages, réessayez, ou tapez le code ci-dessous.');
       return;
     }
     let detecteur;
     try { detecteur = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] }); }
-    catch (e) { indication.textContent = 'Lecture impossible ici : tapez le code ci-dessous.'; return; }
+    catch (e) { return demarrerZXing(video, indication, auCode, relancer); }
     const confirmer = S.confirmateur(2500);
     const tour = async () => {
       if (!flux) return;
@@ -82,19 +87,24 @@
   }
 
   // Si le système coupe la caméra (bouton « Arrêter » d'iOS, autre application…), on le voit et on propose de relancer.
-  function cameraArretee(video) {
+  function etatCamera(video) {
     const flux = video && video.srcObject;
-    if (!flux || typeof flux.getTracks !== 'function') return false;
+    if (!flux || typeof flux.getTracks !== 'function') return 'aucune';
     const pistes = flux.getTracks();
-    return pistes.length > 0 && pistes.every(t => t.readyState === 'ended' || t.enabled === false && t.muted);
+    if (!pistes.length) return 'aucune';
+    return pistes.every(t => t.readyState === 'ended') ? 'arretee' : 'active';
   }
+  function cameraArretee(video) { return etatCamera(video) === 'arretee'; }
   let surveillance = null;
   function surveillerCamera(video, indication, relancer) {
     clearInterval(surveillance);
-    let demarrage = Date.now();
+    let aTourne = false;
     surveillance = setInterval(() => {
       if (!document.body.contains(video)) { clearInterval(surveillance); return; }
-      if (cameraArretee(video) || (Date.now() - demarrage > 4000 && !video.srcObject && !flux && !lecteurZXing)) {
+      const etat = etatCamera(video);
+      if (etat === 'active') { aTourne = true; return; }
+      // On ne conclut à une coupure qu'après avoir vu la caméra tourner : pas de fausse alerte au démarrage.
+      if (etat === 'arretee' && aTourne) {
         clearInterval(surveillance);
         arreterCamera();
         indication.textContent = 'Caméra arrêtée.';
@@ -104,7 +114,7 @@
   }
 
   // Lecture par ZXing : la caméra est gérée par la bibliothèque, qui analyse les images en continu.
-  async function demarrerZXing(video, indication, auCode) {
+  async function demarrerZXing(video, indication, auCode, relancer) {
     const Z = window.ZXing;
     let pause = false;
     const confirmer = S.confirmateur(2500);
@@ -125,8 +135,8 @@
         boucle = setTimeout(() => { pause = false; indication.textContent = 'Placez le code-barres dans le cadre'; }, 4000);
       });
     } catch (e) {
-      indication.textContent = 'Caméra indisponible : autorisez-la dans les réglages, ou tapez le code ci-dessous.';
       arreterCamera();
+      echecCamera(indication, relancer, 'Caméra indisponible : autorisez-la dans les réglages, réessayez, ou tapez le code ci-dessous.');
     }
   }
 

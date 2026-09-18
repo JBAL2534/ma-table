@@ -397,15 +397,22 @@ test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', 
   assert.ok(video && contenu(w).querySelector('.viseur .relancer').hidden, 'pas de bouton tant que la caméra tourne');
   assert.strictEqual(w.MaTable.ecrans.scanner.cameraArretee({ srcObject: { getTracks: () => [{ readyState: 'live' }] } }), false);
   assert.strictEqual(w.MaTable.ecrans.scanner.cameraArretee({ srcObject: { getTracks: () => [{ readyState: 'ended' }] } }), true);
+  // Tant que la caméra n'a pas tourné, une image absente ou finie n'est pas une coupure (permission en cours, par exemple).
+  video.srcObject = { getTracks: () => [{ readyState: 'ended' }] };
+  await attendre(1100);
+  assert.ok(contenu(w).querySelector('.viseur .relancer').hidden, 'pas de fausse alerte au démarrage');
+  video.srcObject = { getTracks: () => [{ readyState: 'live' }] };
+  await attendre(1100);
   video.srcObject = { getTracks: () => [{ readyState: 'ended' }] };
   await attendre(1100);
   const relancer = contenu(w).querySelector('.viseur .relancer');
   assert.ok(!relancer.hidden && /Caméra arrêtée/.test(texte(contenu(w))), 'coupure détectée, bouton proposé');
   assert.strictEqual(reinitialise, 1, 'le lecteur a été arrêté');
-  video.srcObject = null;
   cliquer(relancer);
   await attendre(30);
-  assert.strictEqual(appels, 2, 'la caméra est relancée');
+  assert.strictEqual(appels, 2, 'la caméra est relancée sur un écran neuf');
+  assert.ok(contenu(w).querySelector('.viseur video') !== video, 'nouvelle vidéo');
+  assert.ok(contenu(w).querySelector('.viseur .relancer').hidden, 'bouton caché à nouveau');
   aller(w, 'menus', {});
   assert.strictEqual(reinitialise, 2, 'la caméra est relâchée en quittant l\u2019écran');
   w.ZXing.BrowserMultiFormatReader = vrai;
