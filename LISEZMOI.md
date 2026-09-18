@@ -80,6 +80,7 @@ nouveautés dans `js/version.js` (elles s'affichent à la première ouverture qu
 | --- | --- |
 | 1.0.0 | Menus, batch cooking, courses multi-magasins, scanner, historique, profil, PWA iPhone |
 | 1.1.0 | Synchronisation entre appareils (gist GitHub), lecture caméra des codes-barres sur iPhone (ZXing), prix mémorisés depuis les tickets, magasins personnalisables, convives par repas, annulations (« Tout aux courses », scan), codes-barres confirmés |
+| 1.3.1 | Scanner : « Relancer la caméra » recharge la page (iOS ne rend la caméra qu'à une page neuve) |
 | 1.3.0 | Scanner : bases sœurs Open Beauty / Products / Pet Food Facts en cascade ; codes inconnus nommés et mémorisés |
 | 1.2.2 | Scanner : « Relancer la caméra » corrigé (repart d'un écran neuf, sans fausse alerte au démarrage) |
 | 1.2.1 | Scanner : « Relancer la caméra » quand le système l'a coupée |

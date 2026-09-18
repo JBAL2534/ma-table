@@ -408,9 +408,13 @@ test('sans lecteur natif (iPhone), le scanner passe par ZXing avec la caméra', 
   const relancer = contenu(w).querySelector('.viseur .relancer');
   assert.ok(!relancer.hidden && /Caméra arrêtée/.test(texte(contenu(w))), 'coupure détectée, bouton proposé');
   assert.strictEqual(reinitialise, 1, 'le lecteur a été arrêté');
+  let rechargements = 0;
+  w.MaTable.app.recharger = (hash) => { rechargements++; w.location.hash = hash; throw new Error('pas de rechargement dans le test'); };
   cliquer(relancer);
   await attendre(30);
-  assert.strictEqual(appels, 2, 'la caméra est relancée sur un écran neuf');
+  assert.strictEqual(rechargements, 1, 'le bouton recharge la page');
+  assert.ok(w.location.hash.startsWith('#scanner'), 'et revient sur le Scanner');
+  assert.strictEqual(appels, 2, 'à défaut de rechargement (test), l\u2019écran est remonté');
   assert.ok(contenu(w).querySelector('.viseur video') !== video, 'nouvelle vidéo');
   assert.ok(contenu(w).querySelector('.viseur .relancer').hidden, 'bouton caché à nouveau');
   aller(w, 'menus', {});

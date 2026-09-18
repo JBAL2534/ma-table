@@ -89,12 +89,14 @@
         navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { this.enregistrementSW = r; }).catch(() => { /* hors ligne indisponible, l'application marche quand même */ });
       }
     },
+    // Recharger la page (remplaçable dans les tests).
+    recharger(hash) { if (hash) location.hash = hash; location.reload(); },
     // Bandeau « Mise à jour prête », en haut de l'écran, jusqu'à ce qu'on l'applique.
     signalerMiseAJour() {
       if (document.getElementById('bandeau-maj')) return;
       const b = el('div', { class: 'bandeau-maj', id: 'bandeau-maj', role: 'status' },
         el('span', 'pousse', '✨ Une nouvelle version de Ma Table est prête.'),
-        el('button', { class: 'btn petit-btn', onclick: () => { try { location.reload(); } catch (e) { /* aperçu de test */ } } }, 'Mettre à jour'));
+        el('button', { class: 'btn petit-btn', onclick: () => { try { this.recharger(); } catch (e) { /* aperçu de test */ } } }, 'Mettre à jour'));
       document.body.prepend(b);
       MaTable.ui.vibrer(15);
     },

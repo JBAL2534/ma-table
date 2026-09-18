@@ -27,8 +27,15 @@
     if (cameraPossible()) {
       const video = el('video', { playsinline: true, muted: true, autoplay: true });
       const indication = el('div', 'indication', 'Placez le code-barres dans le cadre');
-      // Relancer = repartir d'un écran Scanner neuf : nouvelle vidéo, nouveau lecteur, rien d'ancien qui traîne.
-      const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => { clearInterval(surveillance); arreterCamera(); app().rafraichir(); } }, '▶️ Relancer la caméra');
+      // Relancer = recharger la page : sur iPhone, une caméra coupée par le système ne se rouvre qu'ainsi.
+      // Les données sont enregistrées, on revient directement sur le Scanner.
+      const relancer = el('button', { class: 'btn chaud relancer', hidden: true, onclick: () => {
+        relancer.hidden = true; indication.textContent = 'Redémarrage de la caméra…';
+        clearInterval(surveillance); arreterCamera();
+        let recharge = false;
+        try { app().recharger('#scanner'); recharge = true; } catch (e) { recharge = false; }
+        if (!recharge) app().rafraichir();
+      } }, '▶️ Relancer la caméra');
       conteneur.append(el('div', 'viseur', video, el('div', { class: 'cadre', 'aria-hidden': 'true' }), relancer, indication));
       demarrerCamera(video, indication, code => chercher(code, resultat), relancer);
       surveillerCamera(video, indication, relancer);
@@ -57,7 +64,7 @@
       video.srcObject = flux;
       await video.play();
     } catch (e) {
-      echecCamera(indication, relancer, 'Caméra indisponible : autorisez-la dans les réglages, réessayez, ou tapez le code ci-dessous.');
+      echecCamera(indication, relancer, 'Caméra indisponible. Touchez « Relancer », ou tapez le code ci-dessous. Si elle reste bloquée : fermez complètement Ma Table et rouvrez-la.');
       return;
     }
     let detecteur;
@@ -136,7 +143,7 @@
       });
     } catch (e) {
       arreterCamera();
-      echecCamera(indication, relancer, 'Caméra indisponible : autorisez-la dans les réglages, réessayez, ou tapez le code ci-dessous.');
+      echecCamera(indication, relancer, 'Caméra indisponible. Touchez « Relancer », ou tapez le code ci-dessous. Si elle reste bloquée : fermez complètement Ma Table et rouvrez-la.');
     }
   }
 
