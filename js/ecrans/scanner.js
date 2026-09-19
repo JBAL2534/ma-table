@@ -254,11 +254,11 @@
       contenu: el('div', {}, el('div', 'grille-2', el('label', 'champ', el('span', {}, 'Magasin'), magasin), el('label', 'champ', el('span', {}, 'Date'), date)),
         el('label', 'champ', el('span', {}, 'Total payé (€)'), montant),
         el('p', 'gras', U.pluriel(res.articles.length, 'article lu', 'articles lus')),
-        lignes.map(l => el('label', 'case', l.case, el('span', 'pousse', l.a.nom), el('span', 'petit', l.a.prix != null ? U.euros(l.a.prix) : '')))),
+        lignes.map(l => el('label', 'case', l.case, el('span', 'pousse', l.a.nom, l.a.qte != null ? el('div', 'minuscule', U.formaterQte(l.a.qte, l.a.unite) + (l.a.prixKg ? ' · ' + U.euros(l.a.prixKg) + '/kg' : '')) : null), el('span', 'petit', l.a.prix != null ? U.euros(l.a.prix) : '')))),
       actions: [{ libelle: 'Annuler' }, { libelle: 'Enregistrer ce passage', classe: 'principal', action: () => {
         const m = montant.value.replace(/\s/g, '').replace(',', '.');
         if (m && isNaN(Number(m))) { toast('Le montant doit être un nombre.'); return false; }
-        const articles = lignes.filter(l => l.case.checked).map(l => ({ nom: l.a.nom, qte: null, unite: null, rayon: l.a.rayon, prix: l.a.prix }));
+        const articles = lignes.filter(l => l.case.checked).map(l => ({ nom: l.a.nom, qte: l.a.qte != null ? l.a.qte : null, unite: l.a.unite || null, rayon: l.a.rayon, prix: l.a.prix, prixKg: l.a.prixKg || null, prixUnitaire: l.a.prixUnitaire || null }));
         etat.achats.push({ id: U.idUnique('achat'), date: date.value || U.aujourdhui(), magasin: magasin.value, articles, montant: m ? Number(m) : null, par: utilisateur(etat), source: 'ticket' });
         for (const a of articles) S.ajouterGardeManger(etat, { nom: a.nom, rayon: a.rayon });
         // Ce qui était sur la liste pour ce magasin et qui figure sur le ticket est considéré acheté.

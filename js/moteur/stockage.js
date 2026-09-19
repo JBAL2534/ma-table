@@ -103,7 +103,11 @@
       parNom.set(cle, garde);
     }
     const unionParId = (cible, source, compteur) => { const ids = new Set(cible.map(x => x.id)); for (const x of source || []) if (!ids.has(x.id)) { cible.push(x); bilan[compteur]++; } };
-    unionParId(moi.achats, autre.achats, 'achats');
+    for (const a of autre.achats || []) {
+      const i = moi.achats.findIndex(x => x.id === a.id);
+      if (i === -1) { moi.achats.push(a); bilan.achats++; }
+      else if (a.retire && !moi.achats[i].retire) { moi.achats[i] = a; bilan.achats++; }
+    }
     unionParId(moi.avis, autre.avis, 'avis');
     for (const r of autre.recettes || []) {
       const i = moi.recettes.findIndex(x => x.id === r.id);

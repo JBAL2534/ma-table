@@ -263,7 +263,8 @@ test('le parcours du premier jour tient de bout en bout', async () => {
   cliquer(boutons(w, f).find(b => /^Terminer$/.test(texte(b))));
   await attendre(5);
   assert.strictEqual(etat.achats.length, 1, 'un passage archivé'); assert.strictEqual(etat.achats[0].montant, 64.5); assert.strictEqual(etat.achats[0].magasin, magasin);
-  assert.strictEqual(etat.gardeManger.length, 3, 'le garde-manger a reçu les achats');
+  const nomsDistincts = new Set(etat.achats[0].articles.map(a => w.MaTable.util.racineMot(a.nom))).size;
+  assert.strictEqual(etat.gardeManger.length, nomsDistincts, 'le garde-manger a reçu les achats (un même nom, comme deux laits, ne fait qu\u2019une entrée)');
   assert.strictEqual(etat.liste.filter(a => a.coche).length, 0, 'les cochés ont quitté la liste');
   // 6. Historique : noter un repas
   aller(w, 'historique', { onglet: 'semaines', lundi });

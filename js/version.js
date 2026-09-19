@@ -2,8 +2,13 @@
 // Les nouveautés de chaque version sont affichées à la première ouverture qui suit la mise à jour.
 (function (racine) {
   racine.MaTable = racine.MaTable || {};
-  racine.MaTable.VERSION = '1.3.4';
+  racine.MaTable.VERSION = '1.4.0';
   racine.MaTable.NOUVEAUTES = {
+    '1.4.0': [
+      'Ticket de caisse : le poids de chaque ligne est lu (fromager, boucher, primeur) et le prix au kilo calculé, affiché et mémorisé.',
+      'Sur la liste, le dernier prix connu s’affiche au kilo pour un produit pesé ; « Prix qui ont bougé » compare au kilo.',
+      'Historique : « Retirer ce passage » sur un passage en magasin, pour effacer un ticket scanné deux fois.',
+    ],
     '1.3.4': ['Scanner : le bouton « Réessayer » n’apparaît plus en permanence ; il ne s’affiche que si la caméra a été coupée ou refusée.'],
     '1.3.3': [
       'Scanner : un bouton ⏸ dans le cadre éteint la caméra depuis Ma Table et la rallume d’un tap. Préférez-le au bouton « Arrêter » d’iOS.',

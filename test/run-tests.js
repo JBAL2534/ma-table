@@ -653,6 +653,37 @@ test('bases sœurs en cascade et produits nommés par la famille', async () => {
   await assert.rejects(() => S.chercherProduit(etat, '5000000000001', async () => ({ ok: false, status: 500, json: async () => ({}) })), /ne répondent pas/);
 });
 
+test('ticket : poids lu et prix au kilo calculé, mémorisé, comparé ; passage retiré ignoré', () => {
+  const IA = T.IA, H = T.Historique;
+  const t = IA.nettoyer({ magasin: 'marche', date: '2026-09-18', montant: 21.7, articles: [
+    { nom: 'comté 18 mois', prix: 8.2, rayon: 'Crèmerie', quantite: '0,245 kg', prixUnitaire: 33.5 },
+    { nom: 'Saucisson', prix: 6.5, rayon: 'Viandes & poissons', quantite: '250 g', prixUnitaire: 0 },
+    { nom: 'Œufs', prix: 4, rayon: 'Crèmerie', quantite: '12', prixUnitaire: 0 },
+    { nom: 'Yaourts', prix: 3, rayon: 'Crèmerie', quantite: '', prixUnitaire: 0 },
+  ] }, 'ticket');
+  const [comte, sauc, oeufs, yaourts] = t.articles;
+  assert.strictEqual(comte.qte, 0.245); assert.strictEqual(comte.unite, 'kg'); assert.strictEqual(comte.prixKg, 33.47, 'prix ÷ poids');
+  assert.strictEqual(sauc.unite, 'g'); assert.strictEqual(sauc.prixKg, 26);
+  assert.strictEqual(oeufs.qte, 12); assert.strictEqual(oeufs.prixKg, null, 'pas de prix au kilo pour des pièces');
+  assert.strictEqual(yaourts.qte, null); assert.strictEqual(yaourts.prixKg, null);
+  assert.strictEqual(IA.poidsEtPrixKilo({ prix: 10, quantite: '', prixUnitaire: 40 }).prixKg, null, 'un prix unitaire sans poids reste ambigu');
+  const etat = etatNeuf();
+  etat.achats.push({ id: 'a1', date: '2026-08-20', magasin: 'marche', articles: [{ nom: 'Comté', prix: 6.7, qte: 0.2, unite: 'kg', prixKg: 33.5 }], montant: 6.7 });
+  etat.achats.push({ id: 'a2', date: '2026-09-18', magasin: 'marche', articles: [{ nom: 'Comté', prix: 9.9, qte: 0.275, unite: 'kg', prixKg: 36 }], montant: 9.9 });
+  etat.achats.push({ id: 'a3', date: '2026-09-19', magasin: 'marche', articles: [{ nom: 'Comté', prix: 50, qte: 1, unite: 'kg', prixKg: 50 }], montant: 50, retire: true });
+  const p = H.dernierPrix(etat, 'Comté');
+  assert.strictEqual(p.prixKg, 36, 'le passage retiré ne compte pas'); assert.strictEqual(p.unite, 'kg');
+  const v = H.variationsPrix(etat, 3).find(x => x.nom === 'Comté');
+  assert.ok(v && v.auKilo); assert.strictEqual(v.avant, 33.5); assert.strictEqual(v.apres, 36); assert.strictEqual(v.ecart, 2.5, 'comparaison au kilo, pas au morceau');
+  assert.strictEqual(H.resumeSemaine(etat, '2026-09-14').total, 9.9, 'les dépenses ignorent le passage retiré');
+  assert.strictEqual(H.achatsActifs(etat).length, 2);
+  // Un retrait fait sur l'autre appareil arrive par la fusion.
+  const autre = T.Stockage.etatDefaut(); autre.achats.push(Object.assign({}, etat.achats[1], { retire: true, modifieLe: '2026-09-19T10:00:00Z' }));
+  T.Stockage.fusionnerEtat(etat, autre);
+  assert.strictEqual(etat.achats.find(a => a.id === 'a2').retire, true);
+  assert.ok(T.IA.schemaTicket().properties.articles.items.required.includes('quantite'));
+});
+
 (async () => {
   for (const t of tests) {
     try { await t.f(); reussis++; console.log('  ✓ ' + t.nom); }

@@ -267,7 +267,7 @@
   // Suggestions : ce qu'on achète presque chaque semaine et qui manque à la liste.
   function suggestions(etat, limite) {
     const semaines = {};
-    for (const achat of etat.achats) {
+    for (const achat of etat.achats.filter(a => !a.retire)) {
       const lundi = U.lundiDe(achat.date);
       semaines[lundi] = semaines[lundi] || new Set();
       for (const a of achat.articles) semaines[lundi].add(U.racineMot(a.nom));
@@ -277,7 +277,7 @@
     const compte = {};
     const nomsAffiches = {};
     for (const l of lundis) for (const cle of semaines[l]) compte[cle] = (compte[cle] || 0) + 1;
-    for (const achat of etat.achats) for (const a of achat.articles) nomsAffiches[U.racineMot(a.nom)] = a.nom;
+    for (const achat of etat.achats.filter(x => !x.retire)) for (const a of achat.articles) nomsAffiches[U.racineMot(a.nom)] = a.nom;
     const dansListe = new Set(etat.liste.map(a => U.racineMot(a.nom)));
     const seuil = Math.max(2, Math.ceil(lundis.length * 0.6));
     return Object.keys(compte)

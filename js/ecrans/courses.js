@@ -101,7 +101,7 @@
   function ligneArticle(a, grand) {
     const etat = E();
     const prix = H.dernierPrix(etat, a.nom);
-    const detail = [a.qte != null ? U.formaterQte(a.qte, a.unite) : (a.unite || ''), prix ? U.euros(prix.prix) + (prix.magasin !== a.magasin ? ' (' + C.nomMagasin(prix.magasin) + ')' : '') : '', a.coche && a.cochePar ? 'coché par ' + (membreNom(etat, a.cochePar) || '?') : '', !a.coche && a.sources.length && a.sources[0] !== 'manuel' ? 'pour : ' + a.sources.filter(s => s !== 'manuel').map(s => s.replace(/^semaine .*/, 'la semaine').replace(/^batch .*/, 'le batch')).slice(0, 2).join(', ') : ''].filter(Boolean).join(' · ');
+    const detail = [a.qte != null ? U.formaterQte(a.qte, a.unite) : (a.unite || ''), prix ? (prix.prixKg ? U.euros(prix.prixKg) + '/kg' : U.euros(prix.prix)) + (prix.magasin !== a.magasin ? ' (' + C.nomMagasin(prix.magasin) + ')' : '') : '', a.coche && a.cochePar ? 'coché par ' + (membreNom(etat, a.cochePar) || '?') : '', !a.coche && a.sources.length && a.sources[0] !== 'manuel' ? 'pour : ' + a.sources.filter(s => s !== 'manuel').map(s => s.replace(/^semaine .*/, 'la semaine').replace(/^batch .*/, 'le batch')).slice(0, 2).join(', ') : ''].filter(Boolean).join(' · ');
     return el('div', { class: 'article' + (a.coche ? ' est-coche' : ''), dataset: { id: a.id } },
       el('button', { class: 'coche', 'aria-label': (a.coche ? 'Décocher ' : 'Cocher ') + a.nom, 'aria-pressed': String(a.coche), onclick: (ev) => { C.cocher(a, !a.coche, utilisateur(etat)); vibrer(); if (grand) { sauverDoucement(); rafraichirMagasin(); } else sauver(); } }, a.coche ? '✓' : ''),
       el('button', { class: 'corps', onclick: () => menuArticle(a) }, el('div', 'nom', a.nom), detail ? el('div', 'detail', detail) : null),

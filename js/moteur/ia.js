@@ -30,9 +30,11 @@
       magasin: { type: 'string', enum: ids.concat(['inconnu']), description: 'Identifiant du magasin parmi : ' + MaTable.Courses.magasins().map(m => m.id + ' = ' + m.nom).join(', ') + '. inconnu si illisible.' },
       date: { type: 'string', description: 'Date du ticket au format AAAA-MM-JJ, ou chaîne vide.' },
       montant: { type: 'number', description: 'Total payé en euros, 0 si illisible.' },
-      articles: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['nom', 'prix', 'rayon'], properties: {
-        nom: { type: 'string' }, prix: { type: 'number' },
+      articles: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['nom', 'prix', 'rayon', 'quantite', 'prixUnitaire'], properties: {
+        nom: { type: 'string' }, prix: { type: 'number', description: 'Montant payé pour la ligne, en euros.' },
         rayon: { type: 'string', enum: ['Fruits & légumes', 'Viandes & poissons', 'Crèmerie', 'Épicerie', 'Surgelés', 'Boissons', 'Hygiène & maison'] },
+        quantite: { type: 'string', description: 'Poids ou quantité tel qu’imprimé sur la ligne (« 0,245 kg », « 250 g », « 2 »), chaîne vide si absent.' },
+        prixUnitaire: { type: 'number', description: 'Prix au kilo ou à l’unité s’il est imprimé (« 33,50 €/kg »), sinon 0.' },
       } } },
     },
     };
@@ -41,7 +43,7 @@
   const CONSIGNES = {
     produit: 'Photo d’un ou plusieurs produits alimentaires ou ménagers, pris en magasin ou à la maison, en France. Identifie chaque produit distinct visible. Réponds en français.',
     frigo: 'Photo d’un frigo ouvert, d’un placard ou d’un plan de travail, en France. Liste les aliments identifiables, un par ligne, sans inventer ce qui n’est pas visible. Réponds en français.',
-    ticket: 'Photo d’un ticket de caisse français. Extrais l’enseigne (rapprochée d’un des magasins proposés : Biocoop, Grand Frais, un marché, sinon supermarche ; inconnu si illisible), la date, le total payé et chaque ligne d’article avec son prix et son rayon probable. Ignore les remises et les lignes non alimentaires du ticket comme « total » ou « TVA ».',
+    ticket: 'Photo d’un ticket de caisse français. Extrais l’enseigne (rapprochée d’un des magasins proposés dans le schéma ; inconnu si illisible), la date, le total payé et chaque ligne d’article avec son prix, son rayon probable, le poids ou la quantité imprimés (fromager, boucher, primeur : « 0,245 kg », « 2 x ») et le prix au kilo ou à l’unité s’il figure. Ignore les remises et les lignes qui ne sont pas des articles comme « total » ou « TVA ».',
   };
 
   async function appeler(etat, contenu, schema, fetchImpl) {
@@ -87,13 +89,30 @@
     const res = await appeler(etat, contenu, mode === 'ticket' ? schemaTicket() : SCHEMA_ARTICLES, fetchImpl);
     return nettoyer(res, mode);
   }
+  // Poids lu sur la ligne → quantité, unité et prix au kilo (ou prix unitaire imprimé).
+  function poidsEtPrixKilo(a) {
+    const prix = Number(a.prix) || 0;
+    const brut = String(a.quantite || '').trim().replace(/\s*x\s*$/i, '');
+    const q = brut ? MaTable.Courses.analyserSaisie(brut + ' x') : { qte: null, unite: null, nom: '' };
+    const res = { qte: null, unite: null, prixKg: null, prixUnitaire: Number(a.prixUnitaire) > 0 ? Math.round(Number(a.prixUnitaire) * 100) / 100 : null };
+    if (q.qte != null) {
+      res.qte = q.qte;
+      res.unite = q.unite || null;
+      const u = U.normaliser(res.unite || '');
+      let kg = null;
+      if (u === 'kg' || u === 'l') kg = q.qte; else if (u === 'g' || u === 'ml') kg = q.qte / 1000; else if (u === 'cl') kg = q.qte / 100;
+      if (kg && prix) res.prixKg = Math.round((prix / kg) * 100) / 100;
+    }
+    if (!res.prixKg && res.prixUnitaire && res.unite && /^(kg|g|l)$/.test(U.normaliser(res.unite))) res.prixKg = res.prixUnitaire;
+    return res;
+  }
   function nettoyer(res, mode) {
     if (mode === 'ticket') {
       return {
         magasin: MaTable.Courses.magasins().some(m => m.id === res.magasin) ? res.magasin : (MaTable.Courses.magasins()[0] || {}).id || 'supermarche',
         date: /^\d{4}-\d{2}-\d{2}$/.test(res.date || '') ? res.date : null,
         montant: Number(res.montant) > 0 ? Math.round(Number(res.montant) * 100) / 100 : null,
-        articles: (res.articles || []).filter(a => a && a.nom).map(a => ({ nom: U.majuscule(String(a.nom).trim()), prix: Number(a.prix) || null, rayon: a.rayon })),
+        articles: (res.articles || []).filter(a => a && a.nom).map(a => Object.assign({ nom: U.majuscule(String(a.nom).trim()), prix: Number(a.prix) || null, rayon: a.rayon }, poidsEtPrixKilo(a))),
       };
     }
     return {
@@ -129,5 +148,5 @@
     });
   }
 
-  MaTable.IA = { MODELE, active, cle, appeler, analyserPhoto, nettoyer, verifierCle, redimensionner, SCHEMA_ARTICLES, schemaTicket };
+  MaTable.IA = { MODELE, active, cle, appeler, analyserPhoto, nettoyer, verifierCle, redimensionner, SCHEMA_ARTICLES, schemaTicket, poidsEtPrixKilo };
 })(typeof window !== 'undefined' ? window : globalThis);

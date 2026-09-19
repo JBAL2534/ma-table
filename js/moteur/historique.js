@@ -5,6 +5,8 @@
   const U = MaTable.util;
   const M = () => MaTable.Menus;
   const C = () => MaTable.Courses;
+  // Un passage retiré (doublon, erreur) reste archivé mais ne compte plus nulle part.
+  function achatsActifs(etat) { return (etat.achats || []).filter(a => !a.retire); }
 
   function repasDeSemaine(s) {
     const res = [];
@@ -41,7 +43,7 @@
   function depensesParMagasin(etat, lundi) {
     const fin = U.ajouterJours(lundi, 6);
     const res = {};
-    for (const a of etat.achats) {
+    for (const a of achatsActifs(etat)) {
       if (a.date < lundi || a.date > fin) continue;
       res[a.magasin] = res[a.magasin] || { montant: 0, articles: 0, renseigne: false };
       if (a.montant != null) { res[a.magasin].montant += a.montant; res[a.magasin].renseigne = true; }
@@ -67,7 +69,7 @@
   // Toutes les semaines connues (menus ou achats), de la plus récente à la plus ancienne.
   function semainesConnues(etat) {
     const lundis = new Set(Object.keys(etat.semaines));
-    for (const a of etat.achats) lundis.add(U.lundiDe(a.date));
+    for (const a of achatsActifs(etat)) lundis.add(U.lundiDe(a.date));
     for (const a of etat.avis) lundis.add(U.lundiDe(a.date));
     return Array.from(lundis).sort().reverse();
   }
@@ -104,7 +106,7 @@
         if (U.normaliser(r.repas.titre).includes(t)) res.push({ type: 'repas', date: r.date, creneau: r.creneau, titre: r.repas.titre, emoji: r.repas.emoji, lundi });
       }
     }
-    for (const a of etat.achats) for (const art of a.articles) {
+    for (const a of achatsActifs(etat)) for (const art of a.articles) {
       if (U.normaliser(art.nom).includes(t)) res.push({ type: 'achat', date: a.date, magasin: a.magasin, titre: art.nom, lundi: U.lundiDe(a.date) });
     }
     return res.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
@@ -123,7 +125,7 @@
     }
     const articles = {};
     const parEnseigne = {};
-    for (const a of etat.achats) {
+    for (const a of achatsActifs(etat)) {
       if (a.date < depuis) continue;
       for (const art of a.articles) { const k = U.racineMot(art.nom); articles[k] = articles[k] || { nom: art.nom, fois: 0 }; articles[k].fois++; }
       const e = parEnseigne[a.magasin] = parEnseigne[a.magasin] || { magasin: a.magasin, montant: 0, passages: 0 };
@@ -193,7 +195,7 @@
       repas.push(csvLigne([U.dateFr(r.date), M().NOMS_CRENEAU[r.creneau], r.repas.titre, r.repas.type, r.repas.minutes, (r.repas.badges || []).join(', '), a ? a.note : '', a ? a.enfant : '']));
     }
     const achats = [csvLigne(['Date', 'Magasin', 'Article', 'Quantité', 'Unité', 'Rayon', 'Montant du passage'])];
-    for (const a of etat.achats.slice().sort((x, y) => x.date.localeCompare(y.date))) for (const art of a.articles) {
+    for (const a of achatsActifs(etat).sort((x, y) => x.date.localeCompare(y.date))) for (const art of a.articles) {
       achats.push(csvLigne([U.dateFr(a.date), C().nomMagasin(a.magasin), art.nom, art.qte, art.unite, art.rayon, a.montant]));
     }
     return { repas: BOM + repas.join('\n'), achats: BOM + achats.join('\n') };
@@ -203,10 +205,10 @@
   function dernierPrix(etat, nom) {
     const cle = U.racineMot(nom);
     let meilleur = null;
-    for (const a of etat.achats) {
+    for (const a of achatsActifs(etat)) {
       for (const art of a.articles || []) {
         if (art.prix == null || U.racineMot(art.nom) !== cle) continue;
-        if (!meilleur || a.date > meilleur.date) meilleur = { prix: Number(art.prix), magasin: a.magasin, date: a.date };
+        if (!meilleur || a.date > meilleur.date) meilleur = { prix: Number(art.prix), prixKg: art.prixKg || null, qte: art.qte || null, unite: art.unite || null, magasin: a.magasin, date: a.date };
       }
     }
     return meilleur;
@@ -224,19 +226,22 @@
   function variationsPrix(etat, mois) {
     const depuis = U.iso(new Date(Date.now() - (mois || 3) * 30.5 * 86400000));
     const series = {};
-    for (const a of etat.achats.slice().sort((x, y) => x.date.localeCompare(y.date))) {
+    for (const a of achatsActifs(etat).sort((x, y) => x.date.localeCompare(y.date))) {
       if (a.date < depuis) continue;
       for (const art of a.articles || []) {
         if (art.prix == null) continue;
         const k = U.racineMot(art.nom);
-        (series[k] = series[k] || { nom: art.nom, releves: [] }).releves.push({ date: a.date, prix: Number(art.prix), magasin: a.magasin });
+        (series[k] = series[k] || { nom: art.nom, releves: [] }).releves.push({ date: a.date, prix: Number(art.prix), prixKg: art.prixKg || null, magasin: a.magasin });
       }
     }
+    // Quand le prix au kilo est connu aux deux bouts, c'est lui qu'on compare : deux morceaux de comté n'ont pas le même poids.
     return Object.values(series).filter(s => s.releves.length >= 2).map(s => {
       const premier = s.releves[0], dernier = s.releves[s.releves.length - 1];
-      return { nom: s.nom, avant: premier.prix, apres: dernier.prix, ecart: Math.round((dernier.prix - premier.prix) * 100) / 100, releves: s.releves.length, magasin: dernier.magasin };
+      const auKilo = !!(premier.prixKg && dernier.prixKg);
+      const avant = auKilo ? premier.prixKg : premier.prix, apres = auKilo ? dernier.prixKg : dernier.prix;
+      return { nom: s.nom, avant, apres, ecart: Math.round((apres - avant) * 100) / 100, releves: s.releves.length, magasin: dernier.magasin, auKilo };
     }).filter(v => v.ecart !== 0).sort((a, b) => Math.abs(b.ecart) - Math.abs(a.ecart)).slice(0, 10);
   }
 
-  MaTable.Historique = { dernierPrix, totalEstime, variationsPrix, repasDeSemaine, avisDe, noter, resumeSemaine, semainesConnues, reutiliserSemaine, rechercher, statistiques, tableauDeBord, csv, depensesParMagasin };
+  MaTable.Historique = { achatsActifs, dernierPrix, totalEstime, variationsPrix, repasDeSemaine, avisDe, noter, resumeSemaine, semainesConnues, reutiliserSemaine, rechercher, statistiques, tableauDeBord, csv, depensesParMagasin };
 })(typeof window !== 'undefined' ? window : globalThis);
