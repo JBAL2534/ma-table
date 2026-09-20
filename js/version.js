@@ -2,8 +2,9 @@
 // Les nouveautés de chaque version sont affichées à la première ouverture qui suit la mise à jour.
 (function (racine) {
   racine.MaTable = racine.MaTable || {};
-  racine.MaTable.VERSION = '1.4.0';
+  racine.MaTable.VERSION = '1.4.1';
   racine.MaTable.NOUVEAUTES = {
+    '1.4.1': ['Scanner : la carte « Analyser une photo » est plus claire (« Photographier un produit », « … le frigo », « … un ticket ») et accepte aussi une photo de la Photothèque.'],
     '1.4.0': [
       'Ticket de caisse : le poids de chaque ligne est lu (fromager, boucher, primeur) et le prix au kilo calculé, affiché et mémorisé.',
       'Sur la liste, le dernier prix connu s’affiche au kilo pour un produit pesé ; « Prix qui ont bougé » compare au kilo.',

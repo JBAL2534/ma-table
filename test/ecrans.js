@@ -337,7 +337,9 @@ test('la photo n\u2019apparaît qu\u2019avec une clé, et l\u2019import propose 
   assert.ok(texte(contenu(w)).includes('Reconnaissance de photos'), 'la carte IA est dans Profil');
   etat.reglages.ia.cle = 'sk-ant-test'; w.MaTable.Stockage.sauver();
   aller(w, 'scanner', {});
-  assert.ok(boutons(w).some(b => /Ticket/.test(texte(b))) && boutons(w).some(b => /Frigo/.test(texte(b))), 'les boutons photo apparaissent avec une clé');
+  assert.ok(boutons(w).some(b => /Photographier un ticket/.test(texte(b))) && boutons(w).some(b => /Photographier le frigo/.test(texte(b))), 'les boutons photo apparaissent avec une clé');
+  const entreePhoto = contenu(w).querySelector('input[type="file"][accept="image/*"]');
+  assert.ok(entreePhoto && !entreePhoto.hasAttribute('capture'), 'la photothèque reste possible');
   verifierSain(w, erreurs, 'scanner avec clé');
   // Import : la fenêtre propose Fusionner et Remplacer.
   aller(w, 'profil', {});

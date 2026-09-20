@@ -214,7 +214,8 @@
 
   // ---- Photo analysée par l'IA (seulement si une clé est enregistrée) -------------
   function cartePhoto(zone) {
-    const entree = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
+    // Sans « capture » : iOS propose Prendre une photo, Photothèque ou Fichiers.
+    const entree = el('input', { type: 'file', accept: 'image/*', hidden: true });
     let mode = 'produit';
     entree.addEventListener('change', async () => {
       const f = entree.files && entree.files[0]; entree.value = '';
@@ -228,8 +229,8 @@
       } catch (e) { zone.innerHTML = ''; zone.append(el('div', 'erreur', e.message)); }
     });
     const bouton = (m, ico, libelle) => el('button', { class: 'btn', onclick: () => { mode = m; entree.click(); } }, ico + ' ' + libelle);
-    return el('div', 'carte douce', el('h3', {}, '📷 Photo'), el('p', 'petit', 'Un produit, un frigo ouvert ou un ticket de caisse : les articles sont reconnus et proposés, à corriger d\u2019un tap.'),
-      el('div', 'boutons', bouton('produit', '🛍️', 'Produit'), bouton('frigo', '🧊', 'Frigo, placard'), bouton('ticket', '🧾', 'Ticket')), entree);
+    return el('div', 'carte douce', el('h3', {}, '📷 Analyser une photo'), el('p', 'petit', 'Prenez une photo, ou choisissez-en une dans la Photothèque : les articles qu’elle montre sont reconnus et proposés, à corriger d’un tap. Le code-barres, lui, se lit dans le cadre ci-dessous.'),
+      el('div', 'boutons colonne', bouton('produit', '🛍️', 'Photographier un produit'), bouton('frigo', '🧊', 'Photographier le frigo ou un placard'), bouton('ticket', '🧾', 'Photographier un ticket de caisse')), entree);
   }
   function feuilleArticles(res, mode) {
     const etat = E();

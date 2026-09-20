@@ -80,6 +80,7 @@ nouveautés dans `js/version.js` (elles s'affichent à la première ouverture qu
 | --- | --- |
 | 1.0.0 | Menus, batch cooking, courses multi-magasins, scanner, historique, profil, PWA iPhone |
 | 1.1.0 | Synchronisation entre appareils (gist GitHub), lecture caméra des codes-barres sur iPhone (ZXing), prix mémorisés depuis les tickets, magasins personnalisables, convives par repas, annulations (« Tout aux courses », scan), codes-barres confirmés |
+| 1.4.1 | Scanner : libellés explicites de la carte photo, photo depuis la Photothèque acceptée |
 | 1.4.0 | Ticket : poids par ligne et prix au kilo (calculé, affiché, mémorisé, comparé) ; « Retirer ce passage » |
 | 1.3.4 | Correction : les boutons « cachés » l'étaient dans le code mais pas à l'écran (la règle d'affichage des boutons l'emportait) |
 | 1.3.3 | Scanner : bouton ⏸ pour éteindre / rallumer la caméra depuis l'application ; consigne explicite si iOS l'a coupée |
